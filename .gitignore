@@ -1,0 +1,9 @@
+#Files
+.compile-commands.json
+*.o
+*.exe
+*.swp
+
+#Directories
+.ccls-cache/
+.vscode/
