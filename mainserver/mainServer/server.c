@@ -17,7 +17,8 @@
 #include <pthread.h>
 
 //CUSTOM
-#include "mbedtls/include/mbedtls/gcm.h"
+// #include "mbedtls/include/mbedtls/gcm.h"
+#include "../../misc/mbedtls/include/mbedtls/gcm.h"
 #include "ArrayList/arrayList.h"
 #include "AES-GCM/aes-gcm.h"
 #include "pckData/pckData.h"
