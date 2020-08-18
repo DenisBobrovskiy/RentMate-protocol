@@ -16,16 +16,16 @@
 * #### Message Structure  
     NOTE: * - means there is an explanation of this field below  
     NOTE: ** - means there is a more detailed structure table of this field later  <br><br>
-    **General structure**:  
+    **General message structure**:  
 
-    | name                   | size(bits)    | limits(bits) |
-    |------------------------|:-------------:|:------------:|
-    | Length(L1)             | 4             | 0-3          |
-    | ADDLength(L2)          | 4             | 4-7          |
-    | ExtraDataLen(L3)       | 4             | 8-11         |
-    | IV                     | 12            | 12-23        |
-    | Tag                    | 16            | 24-39        |
-    | ExtraData**            | L3            | 40-(39+L3)   |
+    | name                   | size(bits)    | limits(bits)      |
+    |------------------------|:-------------:|:------------:     |
+    | Length(L1)             | 4             | 0-3               |
+    | ADDLength(L2)          | 4             | 4-7               |
+    | ExtraDataLen(L3)       | 4             | 8-11              |
+    | IV                     | 12            | 12-23             |
+    | Tag                    | 16            | 24-39             |
+    | ExtraData**            | L3            | 40-(39+L3)        |
     | ADDData**              | L2            | (40+L3)-(39+L3+L2)|
     | EncryptedData**        | L1            | (40+L3+L2)-(L1-1) | 
     
@@ -50,7 +50,7 @@
     | nonce*                 | 4             | 0-3          |
     | pckGSettings*          | 4             | 4-7          |
     | PckData*               | ...           | 8-...        |
-    * nonce - sessionID???
+    * nonce - sessionID. A random number necessary to avoid msg replay attacks. Obtained by each side sending a random number and then adding them to obtain the sessionID used to communicate. Add 1 to the number on both sides every time a new message is sent. After connection is closed a new sessionID will need to be generated to communicate.
     * pckGSettings - binary field for settings (which ones???)
     * PckData - a PckData structure for storing the main message  <br><br>
 
@@ -130,8 +130,8 @@
     1) AES-GCM context for encrypting the message **???WIP INTRODUCE SYSTEM TO HANDLE THIS**  
 
     Once you set up this data:  
-    1)Encrypt the message with encryptPckData from pckData.c. This function will encrypt the message with AES-GCM and convert all protocol specific fields to network order. NOTE: Any data you send inside your pckData structures NEEDS to be converted to network order and then back to host order on reception
-    1)
+    1)Encrypt the message with encryptPckData from pckData.c. This function will encrypt the message with AES-GCM and convert all protocol specific fields to network order. NOTE: Any data you send inside your pckData structures NEEDS to be converted to network order and then back to host order on reception  
+    2)
 * ### Commands
     **Sent to initiate a certain command, based on an opCode, different opCode lists exist based on devType integer, devType = 0 is server**
 

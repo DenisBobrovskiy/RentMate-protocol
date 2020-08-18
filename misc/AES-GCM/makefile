@@ -1,10 +1,10 @@
-INC = -I../mbedtls/crypto/include/
-LIBDIR = -L../mbedtls/crypto/library
+INC = -I../mbedtls/include/
+LIBDIR = -L../mbedtls/library
 LIBS = -lmbedcrypto
 
 #Compile all and move to esp-idf projects
 lib: obj
-	ar -x ../mbedtls/crypto/library/libmbedcrypto.a
+	ar -x ../mbedtls/library/libmbedcrypto.a
 	ar -rc libaesgcm.a *.o
 	rm *.o
 	mv libaesgcm.a ../../libs

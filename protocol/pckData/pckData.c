@@ -152,6 +152,8 @@ int accept1(int socket, struct sockaddr *newAddr, socklen_t *newLen, arrayList *
     connInfo_t newConnInfo;
     newConnInfo.socket = newFd;
     newConnInfo.sessionIdState  = 0;
+    newConnInfo.rcvSessionIncrements = 0;
+    newConnInfo.sendSessionIncrements = 0;
     addToList(connInfos, &newConnInfo);
     return 0;
 }
@@ -630,6 +632,7 @@ uint32_t getElementFromPckData(arrayList *pointersToData, unsigned char **ptrToE
         printf("Wrong index in pckData!\n");
         return -1;
     }
+    :=
     print2("Got element from list:",tempElementPtr,12,0);
     //print2("Pointer:",&dataPtr,10,0);
     //print2("Pointer dereferenced:",dataPtr,8,0);

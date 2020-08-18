@@ -67,7 +67,7 @@ void *epollRecievingThread(void *args){
         pthread_exit((void*)1);
     }
 
-    //NODE SOCKET INITIALIZATION
+    //NODE SOCKET INITIALIZATION (Nodes(devices) will connect to this socket)
     //
     //Loop through addrinfo results to see if a socket can be set and then set it
     for(p1 = nodeSocketInfo; p1!=NULL; p1->ai_next){
@@ -92,7 +92,7 @@ void *epollRecievingThread(void *args){
         }
         break;
     }
-    //LAN SOCKET INITIALIZATION
+    //LAN SOCKET INITIALIZATION (a user on a LAN will connect to this socket to control the system)
     //
     //same stuff as for the node socket
     for(p2 = LANSocketInfo; p2!=NULL; p2->ai_next){
@@ -203,10 +203,11 @@ void *epollRecievingThread(void *args){
                         perror("Failed adding a new node connection socket to epoll");
                         pthread_exit((void*)1);
                     }
+
                     printf2("Sucessfully accepted and configured new connection on node socket\n");
 
                 }
-                //Check if we got a connection from LAN socket
+                //Check if we got a connection from LAN (user) socket
                 else if(events[i].data.fd == sockLANLocal){
                     sin_size = sizeof(remote_addr);
                     sockLANRemote = accept1(sockLANLocal, (struct sockaddr*)&remote_addr, &sin_size, &connectionsInfo);
@@ -237,12 +238,27 @@ void *epollRecievingThread(void *args){
                 else if(events[i].data.fd!=sockNodeLocal && events[i].data.fd!=sockLANLocal && events[i].events == EPOLLIN){
                     printf2("Accepting a new message\n");
                     recvAll(&recvHolders,&connectionsInfo, events[i].data.fd, processMsgBuffer, processMsg);
+                    int currentSocket = events[i].data.fd;
+
+                    connInfo_t *currentConnection;
+                    //Find the connection info
+                    for(int i = 0; i<connectionsInfo.length;i++){
+                        currentConnection = getFromList(&connectionsInfo,i);
+                        if(currentConnection->socket == currentSocket){
+                            //Found the connection info!
+                            int stage = currentConnection->sessionIdState;
+                            printf2("Recieving msg. Connection info state: %d\n", stage);
+                            break;
+                        }
+                        //No connection info(Should have been generated on connection). Terminate this connection.
+
+                    }
                 }
             }
         }
+
+
     }
-
-
 }
 
 //Custom printf. Prepends a message with a prefix to simplify analysing output

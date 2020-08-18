@@ -8,7 +8,9 @@
 #include <stdint.h>
 
 
-#ifdef MBEDTLS_SSL_CLI_C
+#if defined(MBEDTLS_SSL_CLI_C) && \
+    defined(MBEDTLS_ENTROPY_C) && \
+    defined(MBEDTLS_CTR_DRBG_C)
 static int initialized = 0;
 #if defined(MBEDTLS_X509_CRT_PARSE_C) && defined(MBEDTLS_PEM_PARSE_C)
 static mbedtls_x509_crt cacert;
@@ -16,7 +18,7 @@ static mbedtls_x509_crt cacert;
 const char *alpn_list[3];
 
 
-#if defined(MBEDTLS_KEY_EXCHANGE__SOME__PSK_ENABLED)
+#if defined(MBEDTLS_KEY_EXCHANGE_SOME_PSK_ENABLED)
 const unsigned char psk[] = {
     0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
     0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f
@@ -25,11 +27,13 @@ const char psk_id[] = "Client_identity";
 #endif
 
 const char *pers = "fuzz_client";
-#endif //MBEDTLS_SSL_CLI_C
+#endif /* MBEDTLS_SSL_CLI_C && MBEDTLS_ENTROPY_C && MBEDTLS_CTR_DRBG_C */
 
 
 int LLVMFuzzerTestOneInput(const uint8_t *Data, size_t Size) {
-#ifdef MBEDTLS_SSL_CLI_C
+#if defined(MBEDTLS_SSL_CLI_C) && \
+    defined(MBEDTLS_ENTROPY_C) && \
+    defined(MBEDTLS_CTR_DRBG_C)
     int ret;
     size_t len;
     mbedtls_ssl_context ssl;
@@ -80,7 +84,7 @@ int LLVMFuzzerTestOneInput(const uint8_t *Data, size_t Size) {
                                     MBEDTLS_SSL_PRESET_DEFAULT ) != 0 )
         goto exit;
 
-#if defined(MBEDTLS_KEY_EXCHANGE__SOME__PSK_ENABLED)
+#if defined(MBEDTLS_KEY_EXCHANGE_SOME_PSK_ENABLED)
     if (options & 2) {
         mbedtls_ssl_conf_psk( &conf, psk, sizeof( psk ),
                              (const unsigned char *) psk_id, sizeof( psk_id ) - 1 );
@@ -167,7 +171,7 @@ exit:
 #else
     (void) Data;
     (void) Size;
-#endif //MBEDTLS_SSL_CLI_C
+#endif /* MBEDTLS_SSL_CLI_C && MBEDTLS_ENTROPY_C && MBEDTLS_CTR_DRBG_C */
 
     return 0;
 }

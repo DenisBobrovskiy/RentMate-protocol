@@ -29,6 +29,7 @@ int main(){
 
 
     //INITIALIZING AND CONNECTING
+    printf("Initializing the socket\n");
     socketMain = socket(AF_INET, SOCK_STREAM, 0);
     //setsockopt(socketMain, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(int));
     struct sockaddr_in newConnAddr;
@@ -46,7 +47,7 @@ int main(){
     unsigned char *pckDataEncrypted;
     unsigned char *pckDataAdd;
     composeBeaconPacket((unsigned char*)"Test beacon",12,pckDataEncrypted,pckDataAdd);
-    
+    printf("Msg sent\n");
 }
 
 //Composes a generic message (not fully formatted for the protocol, use pckData functions to complete the  message) use this for functions that compose different message types with different arguments
@@ -65,13 +66,13 @@ int composeNodeMessage(nodeCmdInfo *currentNodeCmdInfo, unsigned char *pckDataEn
 
 
 int composeBeaconPacket(unsigned char *beaconData, uint8_t beaconDataLen, unsigned char *pckDataEncrypted, unsigned char *pckDataAdd){
-    nodeCmdInfo *currentNodeCmdInfo;
-    currentNodeCmdInfo->devId = localGlobals.devId;
-    currentNodeCmdInfo->devType = localGlobals.devType;
-    currentNodeCmdInfo->opcode = 0;
-    currentNodeCmdInfo->argsLen = beaconDataLen;
-    currentNodeCmdInfo->args = beaconData;
-    composeNodeMessage(currentNodeCmdInfo, pckDataEncrypted, pckDataAdd);
+    nodeCmdInfo currentNodeCmdInfo;
+    currentNodeCmdInfo.devId = localGlobals.devId;
+    currentNodeCmdInfo.devType = localGlobals.devType;
+    currentNodeCmdInfo.opcode = 0;
+    currentNodeCmdInfo.argsLen = beaconDataLen;
+    currentNodeCmdInfo.args = beaconData;
+    composeNodeMessage(&currentNodeCmdInfo, pckDataEncrypted, pckDataAdd);
 
     return 1;
 }

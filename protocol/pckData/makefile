@@ -1,4 +1,4 @@
-INC = -I../../misc -I../../misc/mbedtls/crypto/include/
+INC = -I../../misc -I../../misc/mbedtls/include/
 LIBDIR = -L ../../libs
 LIBS = -lpckData -larrayList -laesgcm
 

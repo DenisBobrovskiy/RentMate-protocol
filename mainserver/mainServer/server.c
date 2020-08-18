@@ -17,8 +17,7 @@
 #include <pthread.h>
 
 //CUSTOM
-// #include "mbedtls/include/mbedtls/gcm.h"
-#include "../../misc/mbedtls/include/mbedtls/gcm.h"
+#include "mbedtls/include/mbedtls/gcm.h"
 #include "ArrayList/arrayList.h"
 #include "AES-GCM/aes-gcm.h"
 #include "pckData/pckData.h"
@@ -53,7 +52,6 @@ int main(void){
 int processMsg(connInfo_t *connInfo, unsigned char *msg)
 {
     printf2("Processing new message\n");
-
     //If caught beacon packet. Send it to the list of unverified devices, waiting for the user to accept/reject it. No persistent storage, just during runtime. Allow the option of instantly accepting all devices for debugging purposes.
 
 

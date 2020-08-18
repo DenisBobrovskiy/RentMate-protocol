@@ -22,7 +22,7 @@ int initGCM(mbedtls_gcm_context *ctx, unsigned char *gcmKey, unsigned int keybit
     printf("Initializing AES-GCM\n");
     //Initialize gcm context
     mbedtls_gcm_init(ctx);
-    
+    printf("Context initialized\n");
     //Associate gcm context with key and set cipher to AES
     if(mbedtls_gcm_setkey(ctx,MBEDTLS_CIPHER_ID_AES,gcmKey,keybits)!=0){
         //ERROR

@@ -1,5 +1,5 @@
 #Files
-compile-commands.json
+compile_commands.json
 *.o
 *.exe
 *.swp
