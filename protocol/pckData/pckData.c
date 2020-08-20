@@ -28,6 +28,7 @@ the sessionId's dont get messed up.
 
 */
 #include <stdio.h>
+#include <stddef.h>
 #include <sys/socket.h>
 #include <string.h>
 #include <stdlib.h>
@@ -133,16 +134,20 @@ int connect1(int socket, const struct sockaddr* addr, int sockaddrLen, arrayList
     }
     //If connecting succeeded, add a new connInfo
     connInfo_t newConnInfo;
-    newConnInfo.sessionIdState = 0;
+    newConnInfo.sessionId = 0;
     //newConnInfo.sessionId = 0;
-    //newConnInfo.sessionId = 0;
+    newConnInfo.socket = socket;
+    newConnInfo.remoteNonce = 0;
+    newConnInfo.localNonce = 0;
+    newConnInfo.rcvSessionIncrements = 0;
+    newConnInfo.sendSessionIncrements = 0;
     addToList(connInfos,&newConnInfo);
     return 0;
 }
 
 //Custom accept(). Allows to keep track of connInfos (sessionIDs). If accept() successeds a new conn info for socker gets added to arrayList connInfos
 //Returns -1 on error
-int accept1(int socket, struct sockaddr *newAddr, socklen_t *newLen, arrayList *connInfos){
+int accept1(int socket, struct sockaddr *newAddr, socklen_t *newLen, arrayList *connInfos,char connType){
     int newFd = accept(socket,newAddr,newLen);
     if(newFd==-1){
         printf("Accepting connection failed\n");
@@ -150,10 +155,13 @@ int accept1(int socket, struct sockaddr *newAddr, socklen_t *newLen, arrayList *
     }
     //If successfully accepted, add to connInfos
     connInfo_t newConnInfo;
+    newConnInfo.sessionId = 0;
     newConnInfo.socket = newFd;
-    newConnInfo.sessionIdState  = 0;
+    newConnInfo.remoteNonce = 0;
+    newConnInfo.localNonce = 0;
     newConnInfo.rcvSessionIncrements = 0;
     newConnInfo.sendSessionIncrements = 0;
+    newConnInfo.connectionType = connType;
     addToList(connInfos, &newConnInfo);
     return 0;
 }

@@ -17,7 +17,7 @@
 #define maxCodeLockCommands 128
 
 //PROTOCOL SPECIFIC MACROS
-#define DEVIDLEN 12
+#define DEVIDLEN 16
 #define IVLEN 12
 #define TAGLEN 16
 #define NONCELEN 4

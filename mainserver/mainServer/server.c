@@ -38,6 +38,9 @@ arrayList devInfos; //Stores information for every device known to the server
 arrayList commandsQueue;    //Stores the commands recieved from a client(used not node). Queued up for execution
 globalSettingsStruct globalSettings;    //global settings. Loaded and saved in a config plaintext file
 
+unsigned char decryptedMsgBuffer[MAXMSGLEN];
+mbedtls_gcm_context *gcmCtx;
+
 
 int main(void){
     //INITIALIZATION
@@ -51,8 +54,60 @@ int main(void){
 //Processes a message, it can be any kind of message(node msg or user msg)
 int processMsg(connInfo_t *connInfo, unsigned char *msg)
 {
-    printf2("Processing new message\n");
+    printf2("Processing new message from socket: %d\n",connInfo->socket);
     //If caught beacon packet. Send it to the list of unverified devices, waiting for the user to accept/reject it. No persistent storage, just during runtime. Allow the option of instantly accepting all devices for debugging purposes.
+
+    //Extract the devID and hence its corresponding decryption key
+    if(connInfo->connectionType==0){
+        //Connection to node
+        printf2("Processing a node message...\n");
+        unsigned char *devId;
+        unsigned char *key;
+
+        //Get devId from the message's ADD data (not verified yet, verify that it hasnt been spoofed after decryption!!)
+        arrayList *tempAddData;
+        arrayList *decryptedMsg;
+        readAddData(msg,tempAddData);
+        devId = getFromList(tempAddData,0);
+
+
+        for(int i = 0; i < devInfos.length; i ++){
+            devInfo *newDevInfo = getFromList(&devInfos,i);
+            if(memcmp(newDevInfo->devId,devId,DEVIDLEN)==0){
+                //Found the devID! Get key and dev type
+                key = newDevInfo->key;
+            }else{
+                printf2("No device with corresponding DEVID is known to server... Discard message\n");
+                return -1;
+            }
+        }
+        freeArrayList(tempAddData);
+
+        //Decrypt the message
+        initGCM(gcmCtx,key,KEYLEN/8);
+        if(decryptPckData(gcmCtx,msg,decryptedMsgBuffer)!=0){
+            //Failed decryption (Could be spoofed ADD (DevId for instance) or something else, discard the message)
+            return -1;
+        }
+        readDecryptedData(decryptedMsgBuffer,decryptedMsg);
+
+
+        if(connInfo->localNonce==0){
+            //No nonce sent, hence send one.
+            getrandom(&(connInfo->localNonce),4,0); //Generate random nonce
+
+            //Since we are recieving a message and no nonce from our side has been sent, the other side must have sent their nonce on this message, hence get it.
+            uint32_t *remoteNonce = getFromList(decryptedMsg,0);
+            connInfo->remoteNonce = *remoteNonce;
+            connInfo->sessionId = connInfo->remoteNonce + connInfo->localNonce;  //GENERATING THE NEW SESSION ID BY ADDING UP THE NONCES
+
+            //Send off our part of nonce to remote (node)
+            printf2("Sending off local nonce to node\n");
+            
+            printf2("Nonce local: %d; Nonce remote: %d; Generated sessionID: %d\n", connInfo->localNonce, connInfo->remoteNonce, connInfo->sessionId);
+        }
+    }
+
 
 
 }

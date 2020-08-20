@@ -86,7 +86,7 @@
     The **settings** stored in it are:
     | settingName                 | description                                   |
     | ---                         | ---                                           |
-    | devId                       | one time randomly generated 64 bit number     |
+    | devId                       | one time randomly generated 128 bit number    |
     | devType                     | type of device, 16 bit number                 |
     |
 
@@ -98,7 +98,7 @@
 
     | name          | size(bits)        | limits(bits)      | type      |
     | ---           | :---:             | :---:             | :---:     |
-    | DEVID         | 32                | 0-31              | ADD       |
+    | DEVID         | 32                | 0-127             | ADD       |
     | devtype       | 16                | 0-15              | Encrypted | 
     | opcode        | 16                | 16-31             | Encrypted |
     | argsLen       | 32                | 32-63             | Encrypted |

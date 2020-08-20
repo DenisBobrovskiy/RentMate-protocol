@@ -181,7 +181,7 @@ void *epollRecievingThread(void *args){
                 if(events[i].data.fd==sockNodeLocal){
                     //New connection on node socket
                     sin_size = sizeof(remote_addr);
-                    sockNodeRemote = accept1(sockNodeLocal, (struct sockaddr*)&remote_addr, &sin_size, &connectionsInfo);
+                    sockNodeRemote = accept1(sockNodeLocal, (struct sockaddr*)&remote_addr, &sin_size, &connectionsInfo, 0);
                     if(sockNodeRemote == -1){
                         //Accepting connection failed
                         perror("Accepting node socket failed");
@@ -210,7 +210,7 @@ void *epollRecievingThread(void *args){
                 //Check if we got a connection from LAN (user) socket
                 else if(events[i].data.fd == sockLANLocal){
                     sin_size = sizeof(remote_addr);
-                    sockLANRemote = accept1(sockLANLocal, (struct sockaddr*)&remote_addr, &sin_size, &connectionsInfo);
+                    sockLANRemote = accept1(sockLANLocal, (struct sockaddr*)&remote_addr, &sin_size, &connectionsInfo, 1);
                     if(sockLANRemote == -1){
                         //Accepting connections failed
                         perror("Accepting LAN socket failed");
@@ -239,20 +239,6 @@ void *epollRecievingThread(void *args){
                     printf2("Accepting a new message\n");
                     recvAll(&recvHolders,&connectionsInfo, events[i].data.fd, processMsgBuffer, processMsg);
                     int currentSocket = events[i].data.fd;
-
-                    connInfo_t *currentConnection;
-                    //Find the connection info
-                    for(int i = 0; i<connectionsInfo.length;i++){
-                        currentConnection = getFromList(&connectionsInfo,i);
-                        if(currentConnection->socket == currentSocket){
-                            //Found the connection info!
-                            int stage = currentConnection->sessionIdState;
-                            printf2("Recieving msg. Connection info state: %d\n", stage);
-                            break;
-                        }
-                        //No connection info(Should have been generated on connection). Terminate this connection.
-
-                    }
                 }
             }
         }

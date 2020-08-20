@@ -27,10 +27,11 @@
 //Contains information about a connection to another socket, gets created whenever a connection is established
 typedef struct _connInfo{
     int socket;
-
+    char connectionType;  //0 - Connection between server and node. 1 - Connection between user and node in LAN. 2 - Connection between user and server from internet
     //SessionId - a unique random number is established and then incremented by 1 for every message exchanged.
-    char sessionIdState;    //State of sessionId. 0 means not set, 1 means set and ready to communicate and 2 means establishing id is in progress.
-    uint32_t sessionId;     //SessionId, unique number for every session, prevents replay attacks.
+    uint32_t remoteNonce;   //random number from the remote socket to establish the sessionID. it is 0 if not yet set
+    uint32_t localNonce;    //random number from the local socket to establish the sessionID. it is 0 if not yet set
+    uint32_t sessionId;     //SessionId, unique number for every session, prevents replay attacks. If it is 0 it means it hasnt been set
     uint32_t sendSessionIncrements;     //Before sending a message increment by 1, allows sessionId to be different for every message during session.
     uint32_t rcvSessionIncrements;      //Before reading message increment by 1 (because every new message sent will have its sessionId incremented by 1)
 
@@ -115,7 +116,7 @@ int handleMsgData(connInfo_t *connInfo, recvHolder *recvHolderToUse, int rs, uns
 int handleMsgLen(recvHolder *recvHolderToUse, int rs);
 
 int recvAll(arrayList *recvHoldersList, arrayList *connInfos, int socket, unsigned char *processBuf, processingCallback processingMsgCallback);
-int accept1(int socket, struct sockaddr *newAddr, socklen_t *newLen, arrayList *connInfos);
+int accept1(int socket, struct sockaddr *newAddr, socklen_t *newLen, arrayList *connInfos, char connType);
 int closeSocket(int socket);
 int processMsg();
 int sendall(int s, unsigned char *buf, int len);
