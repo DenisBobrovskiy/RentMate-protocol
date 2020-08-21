@@ -1,6 +1,9 @@
 #ifndef GENERALSETTINGS_HEADER
 #define GENERALSETTINGS_HEADER
 
+//PROTOCOL VERSION
+#define currentSystemVersion 0
+
 //PORTS
 #define NodeConnectionsPort 3333
 #define LANConnectionsPort 4444
@@ -25,8 +28,8 @@
 #define MAXDEVMSGLEN 255  //Max message len of a message coming from a device
 #define MAXUSERCMDMAXLEN 255  //Max message len of a controll message from a user to server
 #define MAXMSGLEN 255
-#define DEVTYPELEN 16
-#define OPCODELEN 16
+#define DEVTYPELEN 4
+#define OPCODELEN 4
 
 #define baseNodeMessageLen  DEVIDLEN + DEVTYPELEN + OPCODELEN + 32
 

@@ -243,21 +243,20 @@ int encryptAndSendAll(int socket,
     }
 
     //Check if sessionId is stablsihed or not
-    if(finalConnInfo->sessionIdState==1){
+    if(finalConnInfo->sessionId!=0){
         //The sessionId is set!. Just increment the send counter by 1 before sending the message.
         finalConnInfo->sendSessionIncrements+=1;
-        uint32_t msgLen = encryptPckData(ctx,pckData,addDataPck,extraDataPck,pckGSettings,(finalConnInfo->sessionId+finalConnInfo->sendSessionIncrements),outBuf);
+        uint32_t currentNonce = finalConnInfo->sessionId + finalConnInfo->sendSessionIncrements;
+        currentNonce = htonl(currentNonce);
+        uint32_t msgLen = encryptPckData(ctx,pckData,addDataPck,extraDataPck,pckGSettings,currentNonce,outBuf);
         sendall(socket,outBuf,msgLen);
-    }else if(finalConnInfo->sessionIdState==0){
+    }else if(finalConnInfo->sessionId==0){
         //The sessionId not established
-        printf("SessionId not set. Aborting send request.\n");
-        return -1;
-    }else if(finalConnInfo->sessionIdState==2){
-        //SessionId establishment is in progress
-        printf("Sessionid is being established. Cant send message yet. Aborting send request.\n");
-        return -2;
+        printf("SessionId not set(detected at encryptAndSendAll()). The message will be sent but localNonce will be sent instead of sessionID. And sessionID send counter wont be incremented");
+        uint32_t localNonce = htonl(finalConnInfo->localNonce);
+        uint32_t msgLen = encryptPckData(ctx,pckData,addDataPck,extraDataPck,pckGSettings,localNonce,outBuf);
+        sendall(socket,outBuf,msgLen);
     }
-
 
     printf("Current SessionId: %d\n",finalConnInfo->sessionId);
     return 0;
@@ -640,7 +639,7 @@ uint32_t getElementFromPckData(arrayList *pointersToData, unsigned char **ptrToE
         printf("Wrong index in pckData!\n");
         return -1;
     }
-    :=
+    
     print2("Got element from list:",tempElementPtr,12,0);
     //print2("Pointer:",&dataPtr,10,0);
     //print2("Pointer dereferenced:",dataPtr,8,0);
@@ -1144,3 +1143,23 @@ int modifySetting(unsigned char *settingName, int settingLen, uint32_t newOption
 	fclose(tempSettingsFile);
 }
 
+
+//int initializeBasicMessage(unsigned char *pckDataEncrypted, unsigned char *pckDataADD, unsigned char *pckDataExtra, uint32_t nonce, unsigned char *pckGSettings){
+//    initPckData(&pckDataEncrypted);
+//    initPckData(&pckDataADD);
+//    initPckData(&pckDataExtra);
+
+//    //DEFINE THE PROTOCOL VERSION
+//    uint32_t protocolVersion = currentSystemVersion;
+
+//    //ADD DATA
+//    appendToPckData(&pckDataADD,(unsigned char *)&protocolVersion,4);
+
+//    //EXTRA DATA
+
+//    //ENCRYPTED DATA
+//    nonce = htonl(nonce);
+//    appendToPckData(&pckDataEncrypted,(unsigned char *)&nonce,4);
+//    appendToPckData(&pckDataEncrypted,pckGSettings,4);
+    
+//}

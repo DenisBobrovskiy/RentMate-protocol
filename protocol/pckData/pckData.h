@@ -7,17 +7,18 @@
 #include <stdint.h>
 #include <arpa/inet.h>
 #include <stdarg.h>
+#include "generalSettings.h"
 
 //DEFINES
 #define pckDataIncrements 255   //If pckData(a binary data containing structure) gets filled and u need to add more to it, it will increment by this number
 
 //PROTOCOL SPECIFIC MACROS
-#define DEVIDLEN 12   //length of DEVID, a unique permament id of a device
-#define IVLEN 12    //Length of the IV (encryption stuff), 12 is okay
-#define TAGLEN 16   //Length of tag, tag is used to verify integrity of the message is AES-GCM protocol
-#define NONCELEN 4  //Length of nonce, a random number used to establish a unique session before starting to communicate, prevents replay attacks
-#define KEYLEN 16   //Length of enryption key in AES-GCM
-#define MAXDEVMSGLEN 255    //Max length of a message coming from a device
+// #define DEVIDLEN 12   //length of DEVID, a unique permament id of a device
+// #define IVLEN 12    //Length of the IV (encryption stuff), 12 is okay
+// #define TAGLEN 16   //Length of tag, tag is used to verify integrity of the message is AES-GCM protocol
+// #define NONCELEN 4  //Length of nonce, a random number used to establish a unique session before starting to communicate, prevents replay attacks
+// #define KEYLEN 16   //Length of enryption key in AES-GCM
+// #define MAXDEVMSGLEN 255    //Max length of a message coming from a device
 #define protocolSpecificAddLen 4   //MODIFY THIS IF YOU ADD ANY NEW DATA TO PROTOCOL SPECIFIC ADD
 #define protocolSpecificExtraDataLen 0  //MODIFY THIS IF YOU ADD ANY NEW DATA TO PROTOCOL SPECIFIC EXTRA DATA (UNLIKE ADD IT CAN BE MODIFIED BY 3rd PARTIES)
 

@@ -18,7 +18,7 @@
     NOTE: ** - means there is a more detailed structure table of this field later  <br><br>
     **General message structure**:  
 
-    | name                   | size(bits)    | limits(bits)      |
+    | name                   | size(bytes)   | limits(bytes)    |
     |------------------------|:-------------:|:------------:     |
     | Length(L1)             | 4             | 0-3               |
     | ADDLength(L2)          | 4             | 4-7               |
@@ -31,7 +31,7 @@
     
     **PckData structure**(used to store any data that needs to be sent, functions like an array):
 
-    | name                   | size(bits)    | limits(bits) |
+    | name                   | size(bytes)   | limits(bytes)|
     | ---                    | :---:         | :---:        |
     | pckDataLen             | 4             | 0-3          |
     | pckDataIncrements*     | 4             | 4-7          |
@@ -45,18 +45,18 @@
     
     **EncryptedData(From General Structure section) structure**:
 
-    | name                   | size(bits)    | limits(bits) |
-    | ---                    | :---:         | :---:        |
-    | nonce*                 | 4             | 0-3          |
-    | pckGSettings*          | 4             | 4-7          |
-    | PckData*               | ...           | 8-...        |
+    | name                   | size(bytes)   | limits(bytes)|
+    | ---                    | :---:         | :---:         |
+    | nonce*                 | 4             | 0-3           |
+    | pckGSettings*          | 4             | 4-7           |
+    | PckData*               | ...           | 8-...         |
     * nonce - sessionID. A random number necessary to avoid msg replay attacks. Obtained by each side sending a random number and then adding them to obtain the sessionID used to communicate. Add 1 to the number on both sides every time a new message is sent. After connection is closed a new sessionID will need to be generated to communicate.
     * pckGSettings - binary field for settings (which ones???)
     * PckData - a PckData structure for storing the main message  <br><br>
 
     **ADDData obligatory fields**:
 
-    | name                   | size(bits)    | limits(bits) |
+    | name                   | size(bytes)   | limits(bytes)|
     | ---                    | :---:         | :---:        |
     | versionNum*            | 4             | 0-3          |
     * versionNum - used to accomodate for older firmware   <br><br>
@@ -96,13 +96,13 @@
     When sending a packet from node to server it is encrypted using a key specific to that node which is established on first connection. Then the server uses DEVID unique to each node sent in plaintext with each packet to figure out which key to use to decrypt the rest of the message.  
     **(From)Node Packet structure:**  
 
-    | name          | size(bits)        | limits(bits)      | type      |
-    | ---           | :---:             | :---:             | :---:     |
-    | DEVID         | 32                | 0-127             | ADD       |
-    | devtype       | 16                | 0-15              | Encrypted | 
-    | opcode        | 16                | 16-31             | Encrypted |
-    | argsLen       | 32                | 32-63             | Encrypted |
-    | args          | argsLen           | 64-(63+argsLen)   | Encrypted |
+    | name          | size(bytes)        | limits(bytes)      | type      |
+    | ---           | :---:              | :---:              | :---:     |
+    | DEVID         | 16                 | 0-15               | ADD       |
+    | devtype       | 4                  | 0-3                | Encrypted | 
+    | opcode        | 4                  | 4-7                | Encrypted |
+    | argsLen       | 4                  | 8-11               | Encrypted |
+    | args          | argsLen            | 12-(12+argsLen)    | Encrypted |
 
 
     #### Op Codes

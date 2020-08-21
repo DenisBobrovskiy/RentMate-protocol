@@ -638,16 +638,6 @@ int processMsg(){
 	}
 }
 
-//If only wanna set recvNonce or sendNonce set the opposite one to -1 (default)
-int addConnInfo(int s, uint32_t recvNonce, uint32_t sendNonce){
-	connInfo_t connInfo;
-	connInfo.recvNonce = recvNonce;
-	connInfo.sendNonce = sendNonce;
-	connInfo.socket = s;
-	connInfo.isDevIdSet = 0;
-	addToList(&connectionsInfo,&connInfo);
-}
-
 int removeConnInfo(int s){
 	for(int i =0; i<connectionsInfo.length;i++){
 		connInfo_t *newConnInfo = getFromList(&connectionsInfo,i);
