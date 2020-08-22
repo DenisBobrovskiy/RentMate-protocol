@@ -14,7 +14,7 @@ all: lib
 	rm test/*.o
 
 obj:
-	 gcc -c *.c $(INC) 
+	 gcc -c *.c $(INC) -g
 
 lib: obj
 	ar -x ../../libs/libarrayList.a

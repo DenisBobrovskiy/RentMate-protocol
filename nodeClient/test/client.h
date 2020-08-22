@@ -2,6 +2,7 @@
 #define TESTSENDER_HEADER_H
 
 #include <stdint.h>
+#include "pckData/pckData.h"
 
 
 int loadInNodeSettings();
@@ -20,9 +21,10 @@ typedef struct _globals{
     uint16_t devType;
 }globals;
 
-int composeNodeMessage(nodeCmdInfo *currentNodeCmdInfo, unsigned char *pckDataEncrypted, unsigned char *pckDataAdd);
+int composeNodeMessage(nodeCmdInfo *currentNodeCmdInfo, unsigned char **pckDataEncrypted, unsigned char **pckDataAdd);
 
-int composeBeaconPacket(unsigned char *beaconData, uint8_t beaconDataLen, unsigned char *pckDataEncrypted, unsigned char *pckDataAdd);
-
+int composeBeaconPacket(unsigned char *beaconData, uint8_t beaconDataLen, unsigned char **pckDataEncrypted, unsigned char **pckDataAdd);
+int initializeConnInfo(connInfo_t *connInfo, int socket);
+void sleep_ms(int millis);
 #endif
 

@@ -18,6 +18,7 @@
 
 
 #define ANSI_COLOR_YELLOW "\x1b[33m"
+#define ANSI_COLOR_GREEN  "\x1B[32m"
 #define ANSI_COLOR_RESET "\x1b[0m"
 #define MAXEVENTS 255
 
@@ -165,14 +166,25 @@ void *epollRecievingThread(void *args){
     //Initialization successful
     printf2("Initialization successful\n");
     printf2("Waiting for connections....\n");
-
+    int sockTemp = 0;
     //Main loop to iterate epoll
     while(1){
+        // unsigned char buf[16];
+        // int bytes = 0;
+        // bytes = recv(0,buf,16,0);
+        // if(bytes == -1){
+        //     perror("WTF");
+        // }
+        // printf("BYTES: %d\n",bytes);
+
+
+        printf2("Waiting for new connections, messages...\n");
         int totalEvents = epoll_wait(epollMain, events, MAXEVENTS, -1);
-        printf2("Waiting for new connections...\n");
+        printf2("Total events: %d\n", totalEvents);
 
         //If any events occured
         if(totalEvents>0){
+            // printf2()
             //Loop events
             for(int i = 0; i < totalEvents; i++){
                 socketBeingProcessed = events[i].data.fd;
@@ -181,7 +193,9 @@ void *epollRecievingThread(void *args){
                 if(events[i].data.fd==sockNodeLocal){
                     //New connection on node socket
                     sin_size = sizeof(remote_addr);
-                    sockNodeRemote = accept1(sockNodeLocal, (struct sockaddr*)&remote_addr, &sin_size, &connectionsInfo, 0);
+                    // sockNodeRemote = accept1(sockNodeLocal, (struct sockaddr*)&remote_addr, &sin_size,&connectionsInfo, 0);
+                    sockNodeRemote = accept(sockNodeLocal,(struct sockaddr*)&remote_addr,&sin_size);
+                    printf2("REMOTE SOCKET: %d\n",sockNodeRemote);
                     if(sockNodeRemote == -1){
                         //Accepting connection failed
                         perror("Accepting node socket failed");
@@ -191,11 +205,11 @@ void *epollRecievingThread(void *args){
                     inet_ntop(AF_INET, &(((struct sockaddr_in*)&remote_addr)->sin_addr),connAddr,INET_ADDRSTRLEN);
                     printf2("Accepting new connection from a node at %s\n", connAddr);
 
-                    //Set a new connected socket as non-blocking
-                    if(fcntl(sockNodeRemote,F_SETFL,O_NONBLOCK) == -1){
-                        perror("Failed settings a new node connection socket as non-blocking");
-                        pthread_exit((void*)1);
-                    }
+                    // Set a new connected socket as non-blocking
+                     if(fcntl(sockNodeRemote,F_SETFL,O_NONBLOCK) == -1){
+                         perror("Failed settings a new node connection socket as non-blocking");
+                         pthread_exit((void*)1);
+                     }
                     //Set this socket up for epoll
                     ev1.events = EPOLLIN;
                     ev1.data.fd = sockNodeRemote;
@@ -245,6 +259,7 @@ void *epollRecievingThread(void *args){
 
 
     }
+
 }
 
 //Custom printf. Prepends a message with a prefix to simplify analysing output

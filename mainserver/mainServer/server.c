@@ -114,7 +114,7 @@ int processMsg(connInfo_t *connInfo, unsigned char *msg)
             unsigned char *pckDataADD = NULL;
             unsigned char *pckDataExtra = NULL;
 
-            encryptAndSendAll(connInfo->socket,0,&connectionsInfo,gcmCtx,pckDataEncrypted,pckDataADD,pckDataExtra,0,sendProcessingBuffer);
+            encryptAndSendAll(connInfo->socket,0,connInfo,gcmCtx,pckDataEncrypted,pckDataADD,pckDataExtra,0,sendProcessingBuffer);
 
             //SET SESSION ID AFTER SENDING OFF THE NONCE, OTHERWISE THE encryptAndSendAll() function will think that sessioID was establish and misbehave!!
             connInfo->sessionId = connInfo->remoteNonce + connInfo->localNonce;  //GENERATING THE NEW SESSION ID BY ADDING UP THE NONCES
@@ -134,6 +134,8 @@ int processMsg(connInfo_t *connInfo, unsigned char *msg)
 
             printf2(ANSI_COLOR_BLUE "SessionID established\n" ANSI_COLOR_RESET);
             printf2("Nonce local: %d; Nonce remote: %d; Generated sessionID: %d\n", connInfo->localNonce, connInfo->remoteNonce, connInfo->sessionId);
+
+            //NOW SEND OFF ANY MESSAGES IN THE QUEUE
         }
     }
 

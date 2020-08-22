@@ -163,7 +163,7 @@ int accept1(int socket, struct sockaddr *newAddr, socklen_t *newLen, arrayList *
     newConnInfo.sendSessionIncrements = 0;
     newConnInfo.connectionType = connType;
     addToList(connInfos, &newConnInfo);
-    return 0;
+    return newFd;
 }
 
 //Custom close(). Removes any connInfos for the socket that gets closed.
@@ -216,7 +216,7 @@ connInfo_t* getConnInfo(arrayList *connInfos, int socket){
 //Returns -1 on error
 int encryptAndSendAll(int socket,
         uint32_t sendFlags,
-        arrayList *connInfos,
+        connInfo_t *connInfo,
         mbedtls_gcm_context *ctx,
         unsigned char *pckData,
         unsigned char *addDataPck,
@@ -225,24 +225,25 @@ int encryptAndSendAll(int socket,
         unsigned char *outBuf
         )
 {
+    connInfo_t *finalConnInfo = connInfo;
     //Find corresponding connInfo to socket
-    char isConnInfoFound = 0;
-    connInfo_t *finalConnInfo = NULL;
-    for(int i = 0; i<connInfos->length;i++){
-        connInfo_t *newConnInfo = getFromList(connInfos,i);
-        if(newConnInfo!=NULL){
-            if(newConnInfo->socket==socket){
-                //Found corresponding connInfo!
-                isConnInfoFound=1;
-                finalConnInfo = newConnInfo;
-            }
-        }
-    }
-    if(isConnInfoFound==0){
-        return -1;
-    }
+    //char isConnInfoFound = 0;
+    //connInfo_t *finalConnInfo = NULL;
+    //for(int i = 0; i<connInfos->length;i++){
+    //    connInfo_t *newConnInfo = getFromList(connInfos,i);
+    //    if(newConnInfo!=NULL){
+    //        if(newConnInfo->socket==socket){
+    //            //Found corresponding connInfo!
+    //            isConnInfoFound=1;
+    //            finalConnInfo = newConnInfo;
+    //        }
+    //    }
+    //}
+    //if(isConnInfoFound==0){
+    //    return -1;
+    //}
 
-    //Check if sessionId is stablsihed or not
+    //Check if sessionId is established or not
     if(finalConnInfo->sessionId!=0){
         //The sessionId is set!. Just increment the send counter by 1 before sending the message.
         finalConnInfo->sendSessionIncrements+=1;

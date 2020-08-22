@@ -37,11 +37,13 @@ int main(void){
         perror("Failed to append to pckData");
         exit(1);
     }
-    uint32_t pckGSettings;
+    uint32_t pckGSettings = 0;
     unsigned char pckBuf[255];
     unsigned char outPckBuf[255];
     uint32_t newNonce = 536636;
+    printf("FFFFFFFFFFFFFFFFFFFFFF\n");
     encryptPckData(&ctx,pckData,NULL,NULL,pckGSettings,newNonce,pckBuf);
+    printf("FFFFFFFFFFFFFFFFFFFFFF\n");
     print2("PCKBUFFF:",pckBuf,255,0);
     decryptPckData(&ctx,pckBuf,outPckBuf);
     printf("Initializing socket\n");

@@ -155,7 +155,7 @@ connInfo_t* findConnInfo(int socket, arrayList *connInfosList);
 
 int encryptAndSendAll(int socket,
                     uint32_t sendFlags,
-                    arrayList *connInfos,
+                    connInfo_t *connInfo,
                     mbedtls_gcm_context *ctx,
                     unsigned char *pckData,
                     unsigned char *addDataPck,
