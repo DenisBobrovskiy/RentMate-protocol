@@ -26,5 +26,6 @@ int composeNodeMessage(nodeCmdInfo *currentNodeCmdInfo, unsigned char **pckDataE
 int composeBeaconPacket(unsigned char *beaconData, uint8_t beaconDataLen, unsigned char **pckDataEncrypted, unsigned char **pckDataAdd);
 int initializeConnInfo(connInfo_t *connInfo, int socket);
 void sleep_ms(int millis);
+static int printf2(char *formattedInput, ...);
 #endif
 

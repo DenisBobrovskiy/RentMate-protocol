@@ -11,7 +11,7 @@ commandPtr *reservedNodeCommands;
 
 //Initializes opCodes for the specified devType, as well as the reserved ones
 int initOpCodes(uint32_t devType){
-    printf("Initializing op codes\n");
+    printf2("Initializing op codes\n");
     devTypeToCommands = malloc(maxDevTypes*sizeof(commandPtr));
     //devTypeToCommands[0] = malloc(sizeof(commandPtr)*maxCodeLockCommands);
     //devTypeToCommands[1] = malloc(sizeof(commandPtr)*maxCodeLockCommands);
@@ -40,14 +40,14 @@ int initOpCodes(uint32_t devType){
 
 //Picks a command based on opcode and executes it
 int executeCommand(uint32_t devType, uint32_t opCode, unsigned char isReservedCmd, unsigned char *argsData, uint32_t argsLen){
-    printf("Executing command with opcode: %i\n",opCode);
-    printf("Args len : %d\n",argsLen);
+    printf2("Executing command with opcode: %i\n",opCode);
+    printf2("Args len : %d\n",argsLen);
     if(isReservedCmd!=0){
         //Execute reserved node command
         reservedNodeCommands[opCode](argsData, argsLen);
     }else{
         if(devType==0){
-            printf("devType set to server. Executing corresponding command.");
+            printf2("devType set to server. Executing corresponding command.\n");
         }
         devTypeToCommands[devType][opCode](argsData, argsLen);
     }
@@ -58,7 +58,7 @@ int executeCommand(uint32_t devType, uint32_t opCode, unsigned char isReservedCm
 //SERVER COMMANDS---------------------------------------------------------------------------
 int echo(unsigned char *args, uint32_t argsLen){
     //print recieved string
-    printf("Echo: ");
+    printf2("Echo: ");
     for(int i = 0; i<argsLen; i++){
         printf("%c",*(args+i));
     }
@@ -68,7 +68,7 @@ int echo(unsigned char *args, uint32_t argsLen){
 
 int beacon(unsigned char *args, uint32_t argsLen){
     //Packet sent at regular intervals from every device (After which they either send recv or both and then go to sleep and repeat)
-    printf("Recieved beacon packet!\n");
+    printf2("Beacon packet callback executed!\n");
 
     return 0;
 }
@@ -76,7 +76,18 @@ int beacon(unsigned char *args, uint32_t argsLen){
 
 //RESERVED NODE COMMANDS--------------------------------------------------------------------
 int poweroff(unsigned char *args, uint32_t argsLen){
-    printf("Poweroff command executed...");
+    printf2("Poweroff command executed...");
     
     return 0;
+}
+
+//Custom printf. Prepends a message with a prefix to simplify analysing output
+static int printf2(char *formattedInput, ...){
+    int result;
+    va_list args;
+    va_start(args,formattedInput);
+    printf("pckData-commands: ");
+    result = vprintf(formattedInput,args);
+    va_end(args);
+    return result;
 }

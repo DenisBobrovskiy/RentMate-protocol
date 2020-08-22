@@ -116,7 +116,7 @@ void circulateBuffer(recvHolder *recvHolderToUse, int rs);
 int handleMsgData(connInfo_t *connInfo, recvHolder *recvHolderToUse, int rs, unsigned char *processMsgBuffer, processingCallback processingMsgCallback);
 int handleMsgLen(recvHolder *recvHolderToUse, int rs);
 
-int recvAll(arrayList *recvHoldersList, arrayList *connInfos, int socket, unsigned char *processBuf, processingCallback processingMsgCallback);
+int recvAll(arrayList *recvHoldersList, connInfo_t *connInfo, int socket, unsigned char *processBuf, processingCallback processingMsgCallback);
 int accept1(int socket, struct sockaddr *newAddr, socklen_t *newLen, arrayList *connInfos, char connType);
 int closeSocket(int socket);
 int processMsg();
@@ -151,7 +151,7 @@ int initBasicServerData(arrayList *connInfos,
 int deinitBasicClientData(arrayList *connInfos, arrayList *recvHolders);
 int deinitBasicServerData(arrayList *connInfos, arrayList *recvHolders, arrayList *devInfos, arrayList *commandsQueue);
 
-connInfo_t* findConnInfo(int socket, arrayList *connInfosList);
+// connInfo_t* findConnInfo(int socket, arrayList *connInfosList);
 
 int encryptAndSendAll(int socket,
                     uint32_t sendFlags,
@@ -164,12 +164,15 @@ int encryptAndSendAll(int socket,
                     unsigned char *outBuf
                     );
 
-int sendPartOfSessionId(arrayList *connInfos, int socket);
-int recievePartOfSessionId(arrayList *connInfos, arrayList *recvHolders, int socket, unsigned char *processingBuffer);
-static int internalRecievePartOfSessionId(connInfo_t *connInfo, unsigned char *processingBuf);
+// int sendPartOfSessionId(arrayList *connInfos, int socket);
+// int recievePartOfSessionId(arrayList *connInfos, arrayList *recvHolders, int socket, unsigned char *processingBuffer);
+// static int internalRecievePartOfSessionId(connInfo_t *connInfo, unsigned char *processingBuf);
 
 int initializeSettingsData(globalSettingsStruct *globals);
 
 int printfFormatted(char *prefix, char *formattedInput, ...);
+static int printf2(char *formattedInput, ...);
+
+connInfo_t *findConnInfo(arrayList *connInfos, int socket);
 
 #endif

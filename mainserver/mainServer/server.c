@@ -59,6 +59,15 @@ int processMsg(connInfo_t *connInfo, unsigned char *msg)
     printf2("Processing new message from socket: %d\n",connInfo->socket);
     //If caught beacon packet. Send it to the list of unverified devices, waiting for the user to accept/reject it. No persistent storage, just during runtime. Allow the option of instantly accepting all devices for debugging purposes.
 
+
+    //MESSAGE STRUCTURE
+    printf2("Message structure:\n");
+    for(int i = 0; i <MAXMSGLEN; i++){
+        printf("%d ", *(msg+i));
+    }
+    printf("\n");
+
+
     //Extract the devID and hence its corresponding decryption key
     if(connInfo->connectionType==0){
         //Connection to node
@@ -67,10 +76,10 @@ int processMsg(connInfo_t *connInfo, unsigned char *msg)
         unsigned char *key;
 
         //Get devId from the message's ADD data (not verified yet, verify that it hasnt been spoofed after decryption!!)
-        arrayList *tempAddData;
-        arrayList *decryptedMsg;
-        readAddData(msg,tempAddData);
-        devId = getFromList(tempAddData,0);
+        arrayList tempAddData;
+        arrayList decryptedMsg;
+        readAddData(msg,&tempAddData);
+        devId = getFromList(&tempAddData,0);
 
 
         for(int i = 0; i < devInfos.length; i ++){
@@ -83,7 +92,11 @@ int processMsg(connInfo_t *connInfo, unsigned char *msg)
                 return -1;
             }
         }
-        freeArrayList(tempAddData);
+        if(devInfos.length == 0){
+            printf2("No device infos available. Cant decrypt, ignoring this message\n");
+            return -1;
+        }
+        freeArrayList(&tempAddData);
 
         //Decrypt the message
         initGCM(gcmCtx,key,KEYLEN/8);
@@ -91,7 +104,7 @@ int processMsg(connInfo_t *connInfo, unsigned char *msg)
             //Failed decryption (Could be spoofed ADD (DevId for instance) or something else, discard the message)
             return -1;
         }
-        readDecryptedData(decryptedMsgBuffer,decryptedMsg);
+        readDecryptedData(decryptedMsgBuffer,&decryptedMsg);
 
 
         if(connInfo->localNonce==0 && connInfo->remoteNonce==0){
@@ -104,7 +117,7 @@ int processMsg(connInfo_t *connInfo, unsigned char *msg)
             }
 
             //Since we are recieving a message and no nonce from our side has been sent, the other side must have sent their nonce on this message, hence get it.
-            uint32_t *remoteNonce = getFromList(decryptedMsg,0);
+            uint32_t *remoteNonce = getFromList(&decryptedMsg,0);
             connInfo->remoteNonce = *remoteNonce;
 
             //Send off our part of nonce to remote (node)
@@ -127,7 +140,7 @@ int processMsg(connInfo_t *connInfo, unsigned char *msg)
         }else if(connInfo->remoteNonce==0 && connInfo->localNonce!=0){
             //We sent our nonce before but have just recieved the nonce of the other side
 
-            uint32_t *remoteNonce = getFromList(decryptedMsg,0);
+            uint32_t *remoteNonce = getFromList(&decryptedMsg,0);
             connInfo->remoteNonce = *remoteNonce;
             
             connInfo->sessionId = connInfo->remoteNonce + connInfo->localNonce;  //GENERATING THE NEW SESSION ID BY ADDING UP THE NONCES
@@ -153,3 +166,4 @@ static int printf2(char *formattedInput, ...){
     va_end(args);
     return result;
 }
+

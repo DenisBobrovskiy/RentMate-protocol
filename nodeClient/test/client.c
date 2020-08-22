@@ -11,6 +11,9 @@
 #include <string.h>
 #include "client.h"
 
+#define ANSI_COLOR_BLUE  "\x1B[34m"
+#define ANSI_COLOR_WHITE  "\x1B[37m"
+
 char *nodeSettingsFileName = "settings.conf";
 globals localGlobals;
 connInfo_t connInfo;
@@ -30,7 +33,7 @@ int main(){
 
 
     //INITIALIZING AND CONNECTING
-    printf("Initializing the socket\n");
+    printf2("Initializing the socket\n");
     socketMain = socket(AF_INET, SOCK_STREAM, 0);
     initializeConnInfo(&connInfo,socketMain);
     //setsockopt(socketMain, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(int));
@@ -40,30 +43,26 @@ int main(){
     newConnAddr.sin_port = htons(port);
     socklen_t sockLen = sizeof(newConnAddr);
     if(connect(socketMain,(struct sockaddr*)&newConnAddr,sockLen)==-1){
-        printf("Connection failed\n");
+        printf2("Connection failed\n");
         exit(1);
     }
-    printf("Connected succesfully\n");
+    printf2("Connected succesfully\n");
 
     //Send a test message
     unsigned char *pckDataEncrypted;
     unsigned char *pckDataAdd;
     composeBeaconPacket((unsigned char*)"Test beacon",12,&pckDataEncrypted,&pckDataAdd);
 
-    printf("TESTING1\n");
 
-    printf("pointer: %p\n",pckDataEncrypted);
     uint32_t pckDataLen = *(uint32_t*)pckDataEncrypted;
-    printf("TESTING2\n");
-    unsigned char tempMsg[8] = "BOOMBOOM";
     // sleep_ms(500);
     encryptAndSendAll(socketMain,0,&connInfo,&encryptionContext,pckDataEncrypted,pckDataAdd,NULL,0,sendProcessingBuffer);
-    printf("Msg sent\n");
+    printf2("Msg sent\n");
 
-    while(1){
-        sleep_ms(500);
-        send(socketMain,tempMsg,8,0);
-    }
+    // while(1){
+    //     sleep_ms(500);
+    //     send(socketMain,tempMsg,8,0);
+    // }
 }
 
 //Composes a generic message (not fully formatted for the protocol, use pckData functions to complete the  message) use this for functions that compose different message types with different arguments
@@ -77,8 +76,8 @@ int composeNodeMessage(nodeCmdInfo *currentNodeCmdInfo, unsigned char **pckDataE
     appendToPckData(pckDataEncrypted, (unsigned char*)&(currentNodeCmdInfo->args),currentNodeCmdInfo->argsLen);
     
     uint32_t pckDataLen = *(uint32_t*)pckDataEncrypted;
-    printf("pointer: %p\n",pckDataEncrypted);
-    printf("BOOOOM: %d\n",pckDataLen);
+    // printf2("pointer: %p\n",pckDataEncrypted);
+    // printf2("BOOOOM: %d\n",pckDataLen);
     // pckDataToNetworkOrder(pckDataAdd);
     // pckDataToNetworkOrder(pckDataEncrypted);
     return 0;
@@ -106,7 +105,7 @@ int loadInNodeSettings(){
 
 
     if((settingsFile = fopen(nodeSettingsFileName,"r"))==NULL){
-        printf("Failed opening node settings file\n");
+        // printf("Failed opening node settings file\n");
         return -1;
     }
 
@@ -124,6 +123,7 @@ int loadInNodeSettings(){
         int settingValuePassedFirstQuote = 0;
         int settingValueComplete = 0;
 
+        printf2("Loading in node settings...\n");
 
 		for(int i = 0; i<currentCharacters;i++){
             if(*(temp+i)=='"' && settingsNamePassedFirstQuote==1 && settingNameComplete!=1){
@@ -153,8 +153,8 @@ int loadInNodeSettings(){
             }
             
         }
-        printf("NAME: %s\n",settingName);
-        printf("VALUE: %s\n",settingValue);
+        printf2("NAME: %s\n",settingName);
+        printf2("VALUE: %s\n",settingValue);
         //Analyze the obtained setting name and values and dealloc
         if(strcmp(settingName,"devId")){
             localGlobals.devId = atoi(settingValue);
@@ -186,4 +186,15 @@ void sleep_ms(int millis){
     ts.tv_sec = millis/1000;
     ts.tv_nsec = (millis%1000) * 1000000;
     nanosleep(&ts, NULL);
+}
+
+//Custom printf. Prepends a message with a prefix to simplify analysing output
+static int printf2(char *formattedInput, ...){
+    int result;
+    va_list args;
+    va_start(args,formattedInput);
+    printf(ANSI_COLOR_BLUE "NodeClient: " ANSI_COLOR_WHITE);
+    result = vprintf(formattedInput,args);
+    va_end(args);
+    return result;
 }

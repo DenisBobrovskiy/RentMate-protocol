@@ -180,7 +180,7 @@ void *epollRecievingThread(void *args){
 
         printf2("Waiting for new connections, messages...\n");
         int totalEvents = epoll_wait(epollMain, events, MAXEVENTS, -1);
-        printf2("Total events: %d\n", totalEvents);
+        // printf2("Total events: %d\n", totalEvents);
 
         //If any events occured
         if(totalEvents>0){
@@ -193,9 +193,8 @@ void *epollRecievingThread(void *args){
                 if(events[i].data.fd==sockNodeLocal){
                     //New connection on node socket
                     sin_size = sizeof(remote_addr);
-                    // sockNodeRemote = accept1(sockNodeLocal, (struct sockaddr*)&remote_addr, &sin_size,&connectionsInfo, 0);
-                    sockNodeRemote = accept(sockNodeLocal,(struct sockaddr*)&remote_addr,&sin_size);
-                    printf2("REMOTE SOCKET: %d\n",sockNodeRemote);
+                    sockNodeRemote = accept1(sockNodeLocal, (struct sockaddr*)&remote_addr, &sin_size,&connectionsInfo, 0);
+                    // printf2("REMOTE SOCKET: %d\n",sockNodeRemote);
                     if(sockNodeRemote == -1){
                         //Accepting connection failed
                         perror("Accepting node socket failed");
@@ -251,8 +250,16 @@ void *epollRecievingThread(void *args){
                 //If a message was recieved from any of the connected devices (nodes or users)
                 else if(events[i].data.fd!=sockNodeLocal && events[i].data.fd!=sockLANLocal && events[i].events == EPOLLIN){
                     printf2("Accepting a new message\n");
-                    recvAll(&recvHolders,&connectionsInfo, events[i].data.fd, processMsgBuffer, processMsg);
+
                     int currentSocket = events[i].data.fd;
+                    connInfo_t *connInfo = findConnInfo(&connectionsInfo,currentSocket);
+                    recvAll(&recvHolders,connInfo, events[i].data.fd, processMsgBuffer, processMsg);
+                    printf2("Message structure:\n");
+                    for(int i = 0; i <MAXMSGLEN; i++){
+                        printf("%d ", *(processMsgBuffer+i));
+                    }
+                    printf("\n");
+                    processMsg(connInfo,processMsgBuffer);
                 }
             }
         }
