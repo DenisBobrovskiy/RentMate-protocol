@@ -9,17 +9,17 @@ int loadInNodeSettings();
 
 //Only used internally, dont expose to end program
 typedef struct _nodeCmdInfo{
-    uint64_t devId;
-    uint16_t devType;
-    uint16_t opcode;
+    char devId[DEVIDLEN];
+    uint32_t devType;
+    uint32_t opcode;
     uint32_t argsLen;
     unsigned char *args;    //Pointer to arguments
 }nodeCmdInfo;
 
-typedef struct _globals{
-    uint64_t devId;
-    uint16_t devType;
-}globals;
+typedef struct _nodeSettings_t{
+    char devId[DEVIDLEN];
+    uint32_t devType;
+}nodeSettings_t;
 
 int composeNodeMessage(nodeCmdInfo *currentNodeCmdInfo, unsigned char **pckDataEncrypted, unsigned char **pckDataAdd);
 

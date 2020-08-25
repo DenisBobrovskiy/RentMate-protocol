@@ -15,7 +15,7 @@
 #define ANSI_COLOR_WHITE  "\x1B[37m"
 
 char *nodeSettingsFileName = "settings.conf";
-globals localGlobals;
+nodeSettings_t localNodeSettings;
 connInfo_t connInfo;
 unsigned char sendProcessingBuffer[MAXMSGLEN];
 
@@ -29,6 +29,7 @@ int main(){
 
     //LOAD IN THE settings.conf FILE and set the devId, devtype etc...
     loadInNodeSettings();
+    // print2("DEVID: ",localNodeSettings.devId,DEVIDLEN,0);
     initGCM(&encryptionContext, pointerToKey, KEYLEN*8);
 
 
@@ -55,6 +56,7 @@ int main(){
 
 
     uint32_t pckDataLen = *(uint32_t*)pckDataEncrypted;
+    print2("Add pck data to be added to message:",pckDataAdd,28,0);
     // sleep_ms(500);
     encryptAndSendAll(socketMain,0,&connInfo,&encryptionContext,pckDataEncrypted,pckDataAdd,NULL,0,sendProcessingBuffer);
     printf2("Msg sent\n");
@@ -69,7 +71,9 @@ int main(){
 int composeNodeMessage(nodeCmdInfo *currentNodeCmdInfo, unsigned char **pckDataEncrypted, unsigned char **pckDataAdd){
     initPckData(pckDataAdd);
     initPckData(pckDataEncrypted);
-    appendToPckData(pckDataAdd,(unsigned char*)&(currentNodeCmdInfo->devId),16);
+
+    appendToPckData(pckDataAdd,currentNodeCmdInfo->devId,16);
+
     appendToPckData(pckDataEncrypted,(unsigned char*)&(currentNodeCmdInfo->devType),4);
     appendToPckData(pckDataEncrypted,(unsigned char*)&(currentNodeCmdInfo->opcode),4);
     appendToPckData(pckDataEncrypted, (unsigned char*)&(currentNodeCmdInfo->argsLen),4);
@@ -86,8 +90,8 @@ int composeNodeMessage(nodeCmdInfo *currentNodeCmdInfo, unsigned char **pckDataE
 
 int composeBeaconPacket(unsigned char *beaconData, uint8_t beaconDataLen, unsigned char **pckDataEncrypted, unsigned char **pckDataAdd){
     nodeCmdInfo currentNodeCmdInfo;
-    currentNodeCmdInfo.devId = localGlobals.devId;
-    currentNodeCmdInfo.devType = localGlobals.devType;
+    memcpy(currentNodeCmdInfo.devId,localNodeSettings.devId,DEVIDLEN);
+    currentNodeCmdInfo.devType = localNodeSettings.devType;
     currentNodeCmdInfo.opcode = 0;
     currentNodeCmdInfo.argsLen = beaconDataLen;
     currentNodeCmdInfo.args = beaconData;
@@ -100,7 +104,7 @@ int composeBeaconPacket(unsigned char *beaconData, uint8_t beaconDataLen, unsign
 int loadInNodeSettings(){
     //Open the file
     FILE *settingsFile;
-	char temp[40];
+	char temp[60];
 	int currentCharacters;
 
 
@@ -143,6 +147,9 @@ int loadInNodeSettings(){
                 memcpy(settingValue, settingValueBegin+1, settingValueLen);
                 *(settingValue+settingValueLen) = 0;
                 settingValueComplete = 1;
+                // printf("settings value len: %d\n",settingValueLen);
+                // print2("setting original",settingValueBegin+1,DEVIDLEN,0);
+                // print2("setting copied",settingValue,DEVIDLEN,0);
             }else if(*(temp+i) == '"' && settingValuePassedFirstQuote == 0 && settingNameComplete==1){
                 settingValueBegin = temp+i;
                 settingValuePassedFirstQuote = 1;
@@ -156,10 +163,10 @@ int loadInNodeSettings(){
         printf2("NAME: %s\n",settingName);
         printf2("VALUE: %s\n",settingValue);
         //Analyze the obtained setting name and values and dealloc
-        if(strcmp(settingName,"devId")){
-            localGlobals.devId = atoi(settingValue);
-        }else if(strcmp(settingName,"devType")){
-            localGlobals.devId = atoi(settingValue);
+        if(strcmp(settingName,"devId")==0){
+            memcpy(localNodeSettings.devId,settingValue,DEVIDLEN);
+        }else if(strcmp(settingName,"devType")==0){
+            localNodeSettings.devType = atoi(settingName);
         }
         free(settingName);
         free(settingValue);

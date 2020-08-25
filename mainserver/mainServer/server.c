@@ -49,6 +49,12 @@ int main(void){
     printf2("Initializing main server\n");
     //modifySetting("passExchangeMethod", 18, 0);
     initBasicServerData(&connectionsInfo, &recvHolders, &devInfos, &commandsQueue, &globalSettings, 0);
+
+    //Test stuff
+    unsigned char testDevId[DEVIDLEN] = "TestTestTest1234";
+    addToList(&devInfos,testDevId);
+
+
     pthread_create(&epollRecievingThreadID,NULL,epollRecievingThread,NULL);
     pthread_join(epollRecievingThreadID,NULL);
 }
@@ -79,11 +85,17 @@ int processMsg(connInfo_t *connInfo, unsigned char *msg)
         arrayList tempAddData;
         arrayList decryptedMsg;
         readAddData(msg,&tempAddData);
-        devId = getFromList(&tempAddData,0);
+        unsigned char *devIdDataEntry = getFromList(&tempAddData,0); //Returns a length of the entry (4 bytes) followed by a pointer to that data (pointer is inside the message buffer we passed to the readAddData() function)
+        uint32_t devIdDataLength = *(uint32_t*)devIdDataEntry;
+        unsigned char **devIdDataEntryPtr = devIdDataEntry+4;
+        devId = *devIdDataEntryPtr;  //Here we have obtained a pointer to the DEVID in the message buffer
+        print2("DEVID FROM ADD DATA",devId,DEVIDLEN,0);
 
 
         for(int i = 0; i < devInfos.length; i ++){
             devInfo *newDevInfo = getFromList(&devInfos,i);
+            // printf("DEVINFO FOUND: %s\n",newDevInfo->devId);
+            // printf("DEVINFO SENT: %s\n",devId);
             if(memcmp(newDevInfo->devId,devId,DEVIDLEN)==0){
                 //Found the devID! Get key and dev type
                 key = newDevInfo->key;

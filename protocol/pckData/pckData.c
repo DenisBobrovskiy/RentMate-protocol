@@ -386,7 +386,10 @@ int encryptPckData(mbedtls_gcm_context *ctx,
     pckDataToNetworkOrder(extraDataPck);
     memcpy(pckDataPtr,pckData,pckDataLen);
     if(userAddLen>0){
+        printf2("User ADD data present. Length: %d\n",userAddLen);
         memcpy(addPckDataPtr,addDataPck,userAddLen);
+        print2("ADD data to copy: ",addDataPck,userAddLen,0);
+        print2("ADD data copied: ",addPckDataPtr,userAddLen,0);
     }
     if(userExtraDataLen>0){
         memcpy(extraDataPckPtr,extraDataPck,userExtraDataLen);
@@ -551,13 +554,14 @@ unsigned char* getPointerToUserAddData(unsigned char *msgPtr){
 //Reads addData from message and assigns every addPckDataElement pointer to arrayList addDataPointers.
 //IMPORTANT: USE AFTER MSG WAS DECRYPTED TO VERIFY THAT IT WASNT MODIFIED BY 3RD PARTY (If it were, the tag would be incorrect and decryption will fail!)
 //NOTE: Use before decryption only if completely necessary or for unsensitive info (such as for devId, because you need to know it for decryption key)
-int readAddData(unsigned char *msgPtr, arrayList *addDataPointers){
+int readAddData(unsigned char *msgPtr, arrayList *addDataPointersAndLength){
     //Read only user defined add, ignore stuff such as versionNum and anything else protocol defined
     // printf("Read add data func called\n");
     // print2("READ ADD DATA MESSAGE PASSED:",msgPtr,255,0);
-    initList(addDataPointers,4+sizeof(unsigned char*));
+    initList(addDataPointersAndLength,4+sizeof(unsigned char*));
     unsigned char *msgAddPtr = msgPtr + 4 + 4 + 4 + IVLEN + TAGLEN + protocolSpecificAddLen;
     int distance = 4 + 4 + 4 + IVLEN + TAGLEN + protocolSpecificAddLen;
+    // print2("Add data original:",msgAddPtr,36,0);
     // printf2("distance: %d\n",distance);
     uint32_t pckDataLen = *(uint32_t*)msgAddPtr;
     pckDataLen = ntohl(pckDataLen);
@@ -567,14 +571,20 @@ int readAddData(unsigned char *msgPtr, arrayList *addDataPointers){
     unsigned char *currentDataPtr = NULL;
     while(currentLen<pckDataLen){
         // printf("current len: %d\n",currentLen);
-        unsigned char elementData[4+sizeof(unsigned char*)];
         currentElemLen = *((uint32_t*)(msgAddPtr+currentLen));
+        currentElemLen = ntohl(currentElemLen);
+        unsigned char elementData[4+sizeof(unsigned char*)];
         *(uint32_t*)elementData = currentElemLen;
         // printf("element len: %d\n",currentElemLen);
         unsigned char *addEntryPtr = msgAddPtr+currentLen+4;
         memcpy(elementData+4,&addEntryPtr, sizeof(unsigned char *));
+        unsigned char **elemDataPtr = elementData+4;
+        printf("Add entry ptr original: %p\n", addEntryPtr);
+        printf("Add entry ptr copied: %p\n", *elemDataPtr);
+        print2("ptr before",addEntryPtr,sizeof(unsigned char*),0);
+        print2("ptr after",(elementData),sizeof(unsigned char*),0);
         // print2("Current add element data:",elementData,12,0);
-        addToList(addDataPointers,elementData);
+        addToList(addDataPointersAndLength,elementData);
         currentLen+=(currentElemLen+4);
     }
     return 0;
