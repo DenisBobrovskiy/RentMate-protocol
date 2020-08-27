@@ -253,6 +253,11 @@ int encryptAndSendAll(int socket,
         sendall(socket,outBuf,msgLen);
     }else if(finalConnInfo->sessionId==0){
         //The sessionId not established
+        if(finalConnInfo->localNonce!=0){
+            //Means we already sent out the nonce but havent recieved one yet. Hence ignore this call and wait till sessionID is established
+            printf2("SessionID not set(detected in encryptAndSendAll(). Trying to send localNonce after it was already sent... Ignoring this function call\n");
+            return -1;
+        }
         printf2("SessionId not set(detected at encryptAndSendAll()). The message will be sent but localNonce will be sent instead of sessionID. And sessionID send counter wont be incremented\n");
         uint32_t localNonce = htonl(finalConnInfo->localNonce);
         uint32_t msgLen = encryptPckData(ctx,pckData,addDataPck,extraDataPck,pckGSettings,localNonce,outBuf);
@@ -326,7 +331,10 @@ int encryptPckData(mbedtls_gcm_context *ctx,
         )
 {
     printf2("Encrypting the message\n");
-    uint32_t pckDataLen = *(uint32_t*)pckData;
+    uint32_t pckDataLen = 0;
+    if(pckData!=0){
+        pckDataLen = *(uint32_t*)pckData;
+    }
     unsigned char newIv[IVLEN];
     getrandom(newIv,12,0);
 
@@ -384,7 +392,9 @@ int encryptPckData(mbedtls_gcm_context *ctx,
     pckDataToNetworkOrder(pckData);
     pckDataToNetworkOrder(addDataPck);
     pckDataToNetworkOrder(extraDataPck);
-    memcpy(pckDataPtr,pckData,pckDataLen);
+    if(pckDataLen>0){
+        memcpy(pckDataPtr,pckData,pckDataLen);
+    }
     if(userAddLen>0){
         printf2("User ADD data present. Length: %d\n",userAddLen);
         memcpy(addPckDataPtr,addDataPck,userAddLen);
@@ -1184,6 +1194,15 @@ int modifySetting(unsigned char *settingName, int settingLen, uint32_t newOption
 //    appendToPckData(&pckDataEncrypted,pckGSettings,4);
     
 //}
+
+//Used to read a data entry in form of [4 bytes for length of data][8 bytes for pointer to data] from the arrayList of such entries. Used to read output of readAddData(), readDecryptedData(). Returns size of data entry and assigns dataEntryPtr to the pointer to that data
+int readDataEntry(arrayList *dataEntries, unsigned char **dataPtr, int index){
+    unsigned char *dataEntryPtr = getFromList(dataEntries,index);
+    // print2("dataentry:",dataEntryPtr,16,0);
+    unsigned char **tempPtrToPtr = (unsigned char **)(dataEntryPtr+4);
+    *dataPtr = *tempPtrToPtr;
+    return *(uint32_t*)dataEntryPtr;
+}
 
 
 //Custom printf. Prepends a message with a prefix to simplify analysing output

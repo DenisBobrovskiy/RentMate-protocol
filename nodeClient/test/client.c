@@ -25,7 +25,7 @@ int main(){
     char targetIP[INET_ADDRSTRLEN] = "127.0.0.1";
     uint16_t port = 3333;
     mbedtls_gcm_context encryptionContext;
-    unsigned char pointerToKey[16] = "ABDFKfjrkffkrifj";
+    unsigned char pointerToKey[16] = "KeyKeyKeyKey1234";
 
     //LOAD IN THE settings.conf FILE and set the devId, devtype etc...
     loadInNodeSettings();
@@ -37,6 +37,7 @@ int main(){
     printf2("Initializing the socket\n");
     socketMain = socket(AF_INET, SOCK_STREAM, 0);
     initializeConnInfo(&connInfo,socketMain);
+    connInfo.localNonce = 0;
     //setsockopt(socketMain, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(int));
     struct sockaddr_in newConnAddr;
     newConnAddr.sin_addr.s_addr = inet_addr(targetIP);

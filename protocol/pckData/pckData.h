@@ -175,4 +175,6 @@ static int printf2(char *formattedInput, ...);
 
 connInfo_t *findConnInfo(arrayList *connInfos, int socket);
 
+int readDataEntry(arrayList *dataEntries, unsigned char **dataPtr, int index);
+
 #endif

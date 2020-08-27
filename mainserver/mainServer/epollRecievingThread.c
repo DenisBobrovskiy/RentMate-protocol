@@ -180,7 +180,7 @@ void *epollRecievingThread(void *args){
 
         printf2("Waiting for new connections, messages...\n");
         int totalEvents = epoll_wait(epollMain, events, MAXEVENTS, -1);
-        // printf2("Total events: %d\n", totalEvents);
+        printf2("Total events: %d\n", totalEvents);
 
         //If any events occured
         if(totalEvents>0){
@@ -254,12 +254,6 @@ void *epollRecievingThread(void *args){
                     int currentSocket = events[i].data.fd;
                     connInfo_t *connInfo = findConnInfo(&connectionsInfo,currentSocket);
                     recvAll(&recvHolders,connInfo, events[i].data.fd, processMsgBuffer, processMsg);
-                    printf2("Message structure:\n");
-                    for(int i = 0; i <MAXMSGLEN; i++){
-                        printf("%d ", *(processMsgBuffer+i));
-                    }
-                    printf("\n");
-                    processMsg(connInfo,processMsgBuffer);
                 }
             }
         }
