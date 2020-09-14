@@ -23,6 +23,10 @@ nodeSettings_t localNodeSettings;
 // unsigned char sendProcessingBuffer[MAXMSGLEN];
 pthread_t socketThreadID;
 
+arrayList nodeCommandsQueue;
+pthread_mutex_t commandQueueAccessMux;
+
+
 int main(){
     // int yes = 1;
     // int socketMain;
@@ -34,6 +38,13 @@ int main(){
     //LOAD IN THE settings.conf FILE and set the devId, devtype etc...
 
     loadInNodeSettings();
+
+    //Initialize node command queue
+    pthread_mutex_init(&commandQueueAccessMux,NULL);
+    initializeCommandQueue(&nodeCommandsQueue);
+    nodeCmdInfo testBeaconCmdInfo;
+    composeBeaconPacket(&testBeaconCmdInfo,(unsigned char *)"TestBeacon1",12);
+    addToCommandQueue(&nodeCommandsQueue,&testBeaconCmdInfo);
 
     // print2("DEVID: ",localNodeSettings.devId,DEVIDLEN,0);
     //initGCM(&encryptionContext, pointerToKey, KEYLEN*8);
@@ -69,12 +80,14 @@ int main(){
     //printf2("Msg sent\n");
 
     pthread_create(&socketThreadID,NULL,socketThread,NULL);
+
+    while(1){
+        sleep_ms(500);
+    }
+
+
     pthread_join(socketThreadID,NULL);
 
-    // while(1){
-    //     sleep_ms(500);
-    //     send(socketMain,tempMsg,8,0);
-    // }
 }
 
 //Composes a generic message (not fully formatted for the protocol, use pckData functions to complete the  message) use this for functions that compose different message types with different arguments
@@ -98,16 +111,31 @@ int composeNodeMessage(nodeCmdInfo *currentNodeCmdInfo, unsigned char **pckDataE
 }
 
 
-int composeBeaconPacket(unsigned char *beaconData, uint8_t beaconDataLen, unsigned char **pckDataEncrypted, unsigned char **pckDataAdd){
-    nodeCmdInfo currentNodeCmdInfo;
-    memcpy(currentNodeCmdInfo.devId,localNodeSettings.devId,DEVIDLEN);
-    currentNodeCmdInfo.devType = localNodeSettings.devType;
-    currentNodeCmdInfo.opcode = 0;
-    currentNodeCmdInfo.argsLen = beaconDataLen;
-    currentNodeCmdInfo.args = beaconData;
-    composeNodeMessage(&currentNodeCmdInfo, pckDataEncrypted, pckDataAdd);
+// int composeBeaconPacket(unsigned char *beaconData, uint8_t beaconDataLen, unsigned char **pckDataEncrypted, unsigned char **pckDataAdd){
+//     nodeCmdInfo currentNodeCmdInfo;
+//     memcpy(currentNodeCmdInfo.devId,localNodeSettings.devId,DEVIDLEN);
+//     currentNodeCmdInfo.devType = localNodeSettings.devType;
+//     currentNodeCmdInfo.opcode = 0;
+//     currentNodeCmdInfo.argsLen = beaconDataLen;
+//     currentNodeCmdInfo.args = beaconData;
+//     composeNodeMessage(&currentNodeCmdInfo, pckDataEncrypted, pckDataAdd);
 
-    return 1;
+//     return 0;
+// }
+
+int composeBeaconPacket(nodeCmdInfo *cmdInfo, unsigned char *beaconData, uint8_t beaconDataLen){
+    memcpy(cmdInfo->devId,localNodeSettings.devId,DEVIDLEN);
+    cmdInfo->devType = localNodeSettings.devType;
+    cmdInfo->opcode = 0;
+    cmdInfo->argsLen = beaconDataLen;
+    cmdInfo->args = malloc(beaconDataLen);
+    memcpy(cmdInfo->args,beaconData,beaconDataLen);
+    return 0;
+}
+
+int freeNodeCmdInfo(nodeCmdInfo *cmdInfo){
+    free(cmdInfo->args);
+    return 0;
 }
 
 
@@ -196,6 +224,28 @@ int initializeConnInfo(connInfo_t *connInfo, int socket){
     return 0;
 }
 
+int initializeCommandQueue(arrayList *commandQueue){
+    pthread_mutex_lock(&commandQueueAccessMux);
+    initList(&nodeCommandsQueue,sizeof(nodeCmdInfo));
+    pthread_mutex_unlock(&commandQueueAccessMux);
+    return 0;
+}
+
+//Gets the first item in queue and removes it from the queue
+int popCommandQueue(arrayList *commandQueue, nodeCmdInfo *cmdInfo){
+    pthread_mutex_lock(&commandQueueAccessMux);
+    cmdInfo = getFromList(commandQueue,0);
+    removeFromList(commandQueue,0);
+    pthread_mutex_unlock(&commandQueueAccessMux);
+    return 0;
+}
+
+int addToCommandQueue(arrayList *commandQueue, nodeCmdInfo *cmdInfo){
+    pthread_mutex_lock(&commandQueueAccessMux);
+    addToList(commandQueue,cmdInfo);
+    pthread_mutex_unlock(&commandQueueAccessMux);
+    return 0;
+}
 
 void sleep_ms(int millis){
     //printf("Sleeping for %i ms\n",millis);

@@ -110,16 +110,16 @@ void *socketThread(void *args){
     printf2("Connected succesfully\n");
 
     //Send a test message
-    unsigned char *pckDataEncrypted;
-    unsigned char *pckDataAdd;
-    composeBeaconPacket((unsigned char*)"Test beacon",12,&pckDataEncrypted,&pckDataAdd);
+    // unsigned char *pckDataEncrypted;
+    // unsigned char *pckDataAdd;
+    // composeBeaconPacket((unsigned char*)"Test beacon",12,&pckDataEncrypted,&pckDataAdd);
 
 
-    uint32_t pckDataLen = *(uint32_t*)pckDataEncrypted;
-    print2("Add pck data to be added to message:",pckDataAdd,28,0);
-    // sleep_ms(500);
-    encryptAndSendAll(socketMain,0,&connInfo,&encryptionContext,pckDataEncrypted,pckDataAdd,NULL,0,sendProcessingBuffer);
-    printf2("Msg sent\n");
+    // uint32_t pckDataLen = *(uint32_t*)pckDataEncrypted;
+    // print2("Add pck data to be added to message:",pckDataAdd,28,0);
+    // // sleep_ms(500);
+    // encryptAndSendAll(socketMain,0,&connInfo,&encryptionContext,pckDataEncrypted,pckDataAdd,NULL,0,sendProcessingBuffer);
+    // printf2("Msg sent\n");
 
 
 }

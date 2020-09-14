@@ -4,6 +4,8 @@
 #include <stdint.h>
 #include "pckData/pckData.h"
 
+extern arrayList nodeCommandsQueue;
+extern pthread_mutex_t commandQueueAccessMux;
 
 int loadInNodeSettings();
 
@@ -22,10 +24,16 @@ typedef struct _nodeSettings_t{
 }nodeSettings_t;
 
 int composeNodeMessage(nodeCmdInfo *currentNodeCmdInfo, unsigned char **pckDataEncrypted, unsigned char **pckDataAdd);
+int freeNodeCmdInfo(nodeCmdInfo *cmdInfo);
 
-int composeBeaconPacket(unsigned char *beaconData, uint8_t beaconDataLen, unsigned char **pckDataEncrypted, unsigned char **pckDataAdd);
+// int composeBeaconPacket(unsigned char *beaconData, uint8_t beaconDataLen, unsigned char **pckDataEncrypted, unsigned char **pckDataAdd);
+int composeBeaconPacket(nodeCmdInfo *cmdInfo, unsigned char *beaconData, uint8_t beaconDataLen);
 int initializeConnInfo(connInfo_t *connInfo, int socket);
 void sleep_ms(int millis);
 static int printf2(char *formattedInput, ...);
+
+int initializeCommandQueue(arrayList *commandQueue);
+int popCommandQueue(arrayList *commandQueue, nodeCmdInfo *cmdInfo);
+int addToCommandQueue(arrayList *commandQueue, nodeCmdInfo *cmdInfo);
 #endif
 
