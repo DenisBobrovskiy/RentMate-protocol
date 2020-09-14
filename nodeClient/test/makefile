@@ -1,6 +1,6 @@
 INC = -I../../misc -I../../protocol -I../../misc/mbedtls/include/
 LIBDIR = -L ../../libs
-LIBS = -lpckData -larrayList -laesgcm
+LIBS = -lpthread -lpckData -larrayList -laesgcm
 
 all: client.exe
 

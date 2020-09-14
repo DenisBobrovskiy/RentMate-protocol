@@ -10,57 +10,66 @@
 #include <memory.h>
 #include <string.h>
 #include "client.h"
+#include "socketThread.h"
+#include <pthread.h>
+#include <signal.h>
 
 #define ANSI_COLOR_BLUE  "\x1B[34m"
 #define ANSI_COLOR_WHITE  "\x1B[37m"
 
 char *nodeSettingsFileName = "settings.conf";
 nodeSettings_t localNodeSettings;
-connInfo_t connInfo;
-unsigned char sendProcessingBuffer[MAXMSGLEN];
+// connInfo_t connInfo;
+// unsigned char sendProcessingBuffer[MAXMSGLEN];
+pthread_t socketThreadID;
 
 int main(){
-    int yes = 1;
-    int socketMain;
-    char targetIP[INET_ADDRSTRLEN] = "127.0.0.1";
-    uint16_t port = 3333;
-    mbedtls_gcm_context encryptionContext;
-    unsigned char pointerToKey[16] = "KeyKeyKeyKey1234";
+    // int yes = 1;
+    // int socketMain;
+    // char targetIP[INET_ADDRSTRLEN] = "127.0.0.1";
+    // uint16_t port = 3333;
+    // mbedtls_gcm_context encryptionContext;
+    // unsigned char pointerToKey[16] = "KeyKeyKeyKey1234";
 
     //LOAD IN THE settings.conf FILE and set the devId, devtype etc...
+
     loadInNodeSettings();
+
     // print2("DEVID: ",localNodeSettings.devId,DEVIDLEN,0);
-    initGCM(&encryptionContext, pointerToKey, KEYLEN*8);
+    //initGCM(&encryptionContext, pointerToKey, KEYLEN*8);
 
 
-    //INITIALIZING AND CONNECTING
-    printf2("Initializing the socket\n");
-    socketMain = socket(AF_INET, SOCK_STREAM, 0);
-    initializeConnInfo(&connInfo,socketMain);
-    connInfo.localNonce = 0;
-    //setsockopt(socketMain, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(int));
-    struct sockaddr_in newConnAddr;
-    newConnAddr.sin_addr.s_addr = inet_addr(targetIP);
-    newConnAddr.sin_family = AF_INET;
-    newConnAddr.sin_port = htons(port);
-    socklen_t sockLen = sizeof(newConnAddr);
-    if(connect(socketMain,(struct sockaddr*)&newConnAddr,sockLen)==-1){
-        printf2("Connection failed\n");
-        exit(1);
-    }
-    printf2("Connected succesfully\n");
+    ////INITIALIZING AND CONNECTING
+    //printf2("Initializing the socket\n");
+    //socketMain = socket(AF_INET, SOCK_STREAM, 0);
+    //initializeConnInfo(&connInfo,socketMain);
+    //connInfo.localNonce = 0;
+    ////setsockopt(socketMain, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(int));
+    //struct sockaddr_in newConnAddr;
+    //newConnAddr.sin_addr.s_addr = inet_addr(targetIP);
+    //newConnAddr.sin_family = AF_INET;
+    //newConnAddr.sin_port = htons(port);
+    //socklen_t sockLen = sizeof(newConnAddr);
+    //if(connect(socketMain,(struct sockaddr*)&newConnAddr,sockLen)==-1){
+    //    printf2("Connection failed\n");
+    //    exit(1);
+    //}
+    //printf2("Connected succesfully\n");
 
-    //Send a test message
-    unsigned char *pckDataEncrypted;
-    unsigned char *pckDataAdd;
-    composeBeaconPacket((unsigned char*)"Test beacon",12,&pckDataEncrypted,&pckDataAdd);
+    ////Send a test message
+    //unsigned char *pckDataEncrypted;
+    //unsigned char *pckDataAdd;
+    //composeBeaconPacket((unsigned char*)"Test beacon",12,&pckDataEncrypted,&pckDataAdd);
 
 
-    uint32_t pckDataLen = *(uint32_t*)pckDataEncrypted;
-    print2("Add pck data to be added to message:",pckDataAdd,28,0);
-    // sleep_ms(500);
-    encryptAndSendAll(socketMain,0,&connInfo,&encryptionContext,pckDataEncrypted,pckDataAdd,NULL,0,sendProcessingBuffer);
-    printf2("Msg sent\n");
+    //uint32_t pckDataLen = *(uint32_t*)pckDataEncrypted;
+    //print2("Add pck data to be added to message:",pckDataAdd,28,0);
+    //// sleep_ms(500);
+    //encryptAndSendAll(socketMain,0,&connInfo,&encryptionContext,pckDataEncrypted,pckDataAdd,NULL,0,sendProcessingBuffer);
+    //printf2("Msg sent\n");
+
+    pthread_create(&socketThreadID,NULL,socketThread,NULL);
+    pthread_join(socketThreadID,NULL);
 
     // while(1){
     //     sleep_ms(500);

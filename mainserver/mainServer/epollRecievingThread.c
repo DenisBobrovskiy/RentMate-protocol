@@ -117,7 +117,7 @@ void *epollRecievingThread(void *args){
     freeaddrinfo(nodeSocketInfo);
     freeaddrinfo(LANSocketInfo);
 
-    //Check if any usabled addresses were actually found
+    //Check if any usable addresses were actually found
     if(p1==NULL){
         fprintf(stderr,"Failed finding node address");
         pthread_exit((void*)1);
@@ -254,6 +254,10 @@ void *epollRecievingThread(void *args){
                     int currentSocket = events[i].data.fd;
                     connInfo_t *connInfo = findConnInfo(&connectionsInfo,currentSocket);
                     recvAll(&recvHolders,connInfo, events[i].data.fd, processMsgBuffer, processMsg);
+                }else{
+                    int socket = events[i].data.fd;
+                    printf2("Not accepting connections or recieving message. Came from socket %d\n",socket);
+
                 }
             }
         }
