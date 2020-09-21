@@ -132,11 +132,10 @@ unsigned char* getPointerToUserAddData(unsigned char *msgPtr);
 uint32_t getNonceFromDecryptedData(unsigned char *decryptedDataPtr);
 uint32_t getPckGSettingsFromDecryptedData(unsigned char *decryptedDataPtr);
 
-static int initPckDataInfoBasic(arrayList *connInfos, arrayList *recvHolders, uint32_t devType);
-static int deinitPckDataInfoBasic(arrayList *connInfos, arrayList *recvHolders);
+static int initPckDataInfoBasic(arrayList *recvHolders, uint32_t devType);
+static int deinitPckDataInfoBasic(arrayList *recvHolders);
 
-int initBasicClientData(arrayList *connInfos,
-        arrayList *recvHolders,
+int initBasicClientData(arrayList *recvHolders,
         globalSettingsStruct *globalSettings,
         uint32_t devType);
 
@@ -148,7 +147,7 @@ int initBasicServerData(arrayList *connInfos,
         uint32_t devType
         );
 
-int deinitBasicClientData(arrayList *connInfos, arrayList *recvHolders);
+int deinitBasicClientData(arrayList *recvHolders);
 int deinitBasicServerData(arrayList *connInfos, arrayList *recvHolders, arrayList *devInfos, arrayList *commandsQueue);
 
 // connInfo_t* findConnInfo(int socket, arrayList *connInfosList);

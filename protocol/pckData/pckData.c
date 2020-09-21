@@ -48,12 +48,11 @@ the sessionId's dont get messed up.
 unsigned char settingsFileName[30] = "settings.conf";
 
 //inits all the defaults on a client side application
-int initBasicClientData(arrayList *connInfos,
-        arrayList *recvHolders,
+int initBasicClientData(arrayList *recvHolders,
         globalSettingsStruct *globalSettings,
         uint32_t devType){
 
-    initPckDataInfoBasic(connInfos, recvHolders, devType);
+    initPckDataInfoBasic(recvHolders, devType);
     initializeSettingsData(globalSettings);
     return 0;
 }
@@ -68,7 +67,12 @@ int initBasicServerData(arrayList *connInfos,
         uint32_t devType
         ){
 
-    initPckDataInfoBasic(connInfos,recvHolders, devType);
+    initPckDataInfoBasic(recvHolders, devType);
+
+    if(initList(connInfos,sizeof(connInfo_t))==-1){
+        printf("Failed initializing connInfos list\n");
+        return -1;
+    }
 
     //Allocate devIDs list to keep track of devices
     if(initList(devInfos,sizeof(devInfo))!=0){
@@ -87,25 +91,21 @@ int initBasicServerData(arrayList *connInfos,
 
 //deinits all the defaults on a server side application
 int deinitBasicServerData(arrayList *connInfos, arrayList *recvHolders, arrayList *devInfos, arrayList *commandsQueue){
-    deinitPckDataInfoBasic(connInfos, recvHolders);
+    deinitPckDataInfoBasic(recvHolders);
     freeArrayList(devInfos);
     freeArrayList(commandsQueue);
     return 0;
 
 }
 
-int deinitBasicClientData(arrayList *connInfos, arrayList *recvHolders){
-    deinitPckDataInfoBasic(connInfos, recvHolders);
+int deinitBasicClientData(arrayList *recvHolders){
+    deinitPckDataInfoBasic(recvHolders);
     return 0;
 }
 
 //Inits basic stuff (both client & server, it gets called on every single device's boot)
 //connInfos - a list for keeping connInfos. Needed on both a client and a server machine. Pass a non-initialzed, empty arrayList
-static int initPckDataInfoBasic(arrayList *connInfos, arrayList *recvHolders, uint32_t devType){
-    if(initList(connInfos,sizeof(connInfo_t))==-1){
-        printf("Failed initializing connInfos list\n");
-        return -1;
-    }
+static int initPckDataInfoBasic(arrayList *recvHolders, uint32_t devType){
     //init recvHolers list for recvAll() function
     if(initList(recvHolders,sizeof(recvHolder))!=0){
         printf("Failed to init recvHoldersList on serverInit");
@@ -118,8 +118,7 @@ static int initPckDataInfoBasic(arrayList *connInfos, arrayList *recvHolders, ui
 }
 
 //Deinits all defaults on client and server, get called on every shutdown
-static int deinitPckDataInfoBasic(arrayList *connInfos, arrayList *recvHolders){
-    freeArrayList(connInfos);
+static int deinitPckDataInfoBasic(arrayList *recvHolders){
     freeArrayList(recvHolders);
     return 0;
 }

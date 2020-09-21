@@ -11,6 +11,7 @@
 #include <memory.h>
 #include <pthread.h>
 #include "client.h"
+#include <sys/random.h>
 
 
 #define ANSI_COLOR_YELLOW "\x1b[33m"
@@ -18,6 +19,7 @@
 
 connInfo_t connInfo;
 unsigned char sendProcessingBuffer[MAXMSGLEN];
+unsigned char recvProcessingBuffer[MAXMSGLEN];
 
 void *socketThread(void *args){
 
@@ -82,45 +84,70 @@ void *socketThread(void *args){
 
     //printf2("Recieve socket initialized\n");
 
-    int yes = 1;
-    int socketMain;
-    char targetIP[INET_ADDRSTRLEN] = "127.0.0.1";
-    uint16_t port = 3333;
-    mbedtls_gcm_context encryptionContext;
-    unsigned char pointerToKey[16] = "KeyKeyKeyKey1234";
 
-    initGCM(&encryptionContext, pointerToKey, KEYLEN*8);
+    while(1){
+        printf2("Device waking up\n");
+        int yes = 1;
+        int socketMain;
+        char targetIP[INET_ADDRSTRLEN] = "127.0.0.1";
+        uint16_t port = 3333;
+        unsigned char pointerToKey[16] = "KeyKeyKeyKey1234";
+
+        initGCM(&encryptionContext, pointerToKey, KEYLEN*8);
 
 
-    //INITIALIZING AND CONNECTING
-    printf2("Initializing the socket\n");
-    socketMain = socket(AF_INET, SOCK_STREAM, 0);
-    initializeConnInfo(&connInfo,socketMain);
-    connInfo.localNonce = 0;
-    //setsockopt(socketMain, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(int));
-    struct sockaddr_in newConnAddr;
-    newConnAddr.sin_addr.s_addr = inet_addr(targetIP);
-    newConnAddr.sin_family = AF_INET;
-    newConnAddr.sin_port = htons(port);
-    socklen_t sockLen = sizeof(newConnAddr);
-    if(connect(socketMain,(struct sockaddr*)&newConnAddr,sockLen)==-1){
-        printf2("Connection failed\n");
-        exit(1);
+        //INITIALIZING AND CONNECTING
+        printf2("Initializing the socket\n");
+        socketMain = socket(AF_INET, SOCK_STREAM, 0);
+        initializeConnInfo(&connInfo,socketMain);
+        connInfo.localNonce = 0;
+        //setsockopt(socketMain, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(int));
+        struct sockaddr_in newConnAddr;
+        newConnAddr.sin_addr.s_addr = inet_addr(targetIP);
+        newConnAddr.sin_family = AF_INET;
+        newConnAddr.sin_port = htons(port);
+        socklen_t sockLen = sizeof(newConnAddr);
+        if(connect(socketMain,(struct sockaddr*)&newConnAddr,sockLen)==-1){
+            printf2("Connection failed\n");
+            exit(1);
+        }
+        printf2("Connected succesfully\n");
+
+        //Establish sessionID
+        if(connInfo.localNonce==0){
+            //Generate a localNonce
+            getrandom(&(connInfo.localNonce),4,0);
+            unsigned char *encryptedPckData = NULL;
+            unsigned char *addPckData = NULL;
+            unsigned char *extraPckData = NULL;
+
+            //Send off local nonce
+            encryptAndSendAll(socketMain,0,&connInfo,&encryptionContext,encryptedPckData,addPckData,extraPckData,0,sendProcessingBuffer);
+
+            //Wait for remote nonce
+            while(connInfo.sessionId==0){
+                printf2("Waiting to establish sessionID\n");
+                recvAll(&recvHolders,&connInfo,socketMain,recvProcessingBuffer,processMsg);
+            }
+            
+        }
+
+
+
+        //Send a test message
+        // unsigned char *pckDataEncrypted;
+        // unsigned char *pckDataAdd;
+        // composeBeaconPacket((unsigned char*)"Test beacon",12,&pckDataEncrypted,&pckDataAdd);
+
+
+        // uint32_t pckDataLen = *(uint32_t*)pckDataEncrypted;
+        // print2("Add pck data to be added to message:",pckDataAdd,28,0);
+        // // sleep_ms(500);
+        // encryptAndSendAll(socketMain,0,&connInfo,&encryptionContext,pckDataEncrypted,pckDataAdd,NULL,0,sendProcessingBuffer);
+        // printf2("Msg sent\n");
+
+        sleep_ms(1000); //Imitate deep sleep on ESP32
     }
-    printf2("Connected succesfully\n");
-
-    //Send a test message
-    // unsigned char *pckDataEncrypted;
-    // unsigned char *pckDataAdd;
-    // composeBeaconPacket((unsigned char*)"Test beacon",12,&pckDataEncrypted,&pckDataAdd);
-
-
-    // uint32_t pckDataLen = *(uint32_t*)pckDataEncrypted;
-    // print2("Add pck data to be added to message:",pckDataAdd,28,0);
-    // // sleep_ms(500);
-    // encryptAndSendAll(socketMain,0,&connInfo,&encryptionContext,pckDataEncrypted,pckDataAdd,NULL,0,sendProcessingBuffer);
-    // printf2("Msg sent\n");
-
 
 }
 

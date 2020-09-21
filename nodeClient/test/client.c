@@ -19,11 +19,15 @@
 
 char *nodeSettingsFileName = "settings.conf";
 nodeSettings_t localNodeSettings;
+globalSettingsStruct globalSettings;
 // connInfo_t connInfo;
 // unsigned char sendProcessingBuffer[MAXMSGLEN];
 pthread_t socketThreadID;
+unsigned char decryptionBuffer[MAXMSGLEN];
+mbedtls_gcm_context encryptionContext;
 
 arrayList nodeCommandsQueue;
+arrayList recvHolders;
 pthread_mutex_t commandQueueAccessMux;
 
 
@@ -36,8 +40,8 @@ int main(){
     // unsigned char pointerToKey[16] = "KeyKeyKeyKey1234";
 
     //LOAD IN THE settings.conf FILE and set the devId, devtype etc...
-
     loadInNodeSettings();
+    initBasicClientData(&recvHolders,&globalSettings, localNodeSettings.devType);
 
     //Initialize node command queue
     pthread_mutex_init(&commandQueueAccessMux,NULL);
@@ -76,18 +80,38 @@ int main(){
     //uint32_t pckDataLen = *(uint32_t*)pckDataEncrypted;
     //print2("Add pck data to be added to message:",pckDataAdd,28,0);
     //// sleep_ms(500);
-    //encryptAndSendAll(socketMain,0,&connInfo,&encryptionContext,pckDataEncrypted,pckDataAdd,NULL,0,sendProcessingBuffer);
+   //encryptAndSendAll(socketMain,0,&connInfo,&encryptionContext,pckDataEncrypted,pckDataAdd,NULL,0,sendProcessingBuffer);
     //printf2("Msg sent\n");
 
     pthread_create(&socketThreadID,NULL,socketThread,NULL);
 
-    while(1){
-        sleep_ms(500);
-    }
+    //while(1){
+    //    nodeCmdInfo currentCmdInfo;
+    //    int numOfCommands = getCommandQueueLength(&nodeCommandsQueue);
+    //    printf2("Num of commands to process: %d\n",numOfCommands);
+    //    for (int i = 0; i<numOfCommands; i++){
+    //        //Process each command
+    //        popCommandQueue(&nodeCommandsQueue,&currentCmdInfo);
+            
+    //    }
+    //    sleep_ms(50);
+    //}
 
 
     pthread_join(socketThreadID,NULL);
 
+}
+
+
+int processMsg(connInfo_t *connInfo, unsigned char *message){
+    decryptPckData(&encryptionContext,message,decryptionBuffer);
+    if(connInfo->sessionId==0){
+        //Get the remote nonce and establish sessionID
+        connInfo->remoteNonce = getNonceFromDecryptedData(decryptionBuffer);
+        connInfo->sessionId = connInfo->localNonce+connInfo->remoteNonce;
+        printf2(ANSI_COLOR_BLUE "SessionID established. SessionID: %d\n" ANSI_COLOR_WHITE,connInfo->sessionId);
+        return 0;
+    }
 }
 
 //Composes a generic message (not fully formatted for the protocol, use pckData functions to complete the  message) use this for functions that compose different message types with different arguments
@@ -245,6 +269,13 @@ int addToCommandQueue(arrayList *commandQueue, nodeCmdInfo *cmdInfo){
     addToList(commandQueue,cmdInfo);
     pthread_mutex_unlock(&commandQueueAccessMux);
     return 0;
+}
+
+int getCommandQueueLength(arrayList *commandQueue){
+    pthread_mutex_lock(&commandQueueAccessMux);
+    int len = commandQueue->length;
+    pthread_mutex_unlock(&commandQueueAccessMux);
+    return len;
 }
 
 void sleep_ms(int millis){

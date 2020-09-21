@@ -6,6 +6,8 @@
 
 extern arrayList nodeCommandsQueue;
 extern pthread_mutex_t commandQueueAccessMux;
+extern mbedtls_gcm_context encryptionContext;
+extern arrayList recvHolders;
 
 int loadInNodeSettings();
 
@@ -35,5 +37,7 @@ static int printf2(char *formattedInput, ...);
 int initializeCommandQueue(arrayList *commandQueue);
 int popCommandQueue(arrayList *commandQueue, nodeCmdInfo *cmdInfo);
 int addToCommandQueue(arrayList *commandQueue, nodeCmdInfo *cmdInfo);
+int getCommandQueueLength(arrayList *commandQueue);
+int processMsg(connInfo_t *connInfo, unsigned char *message);
 #endif
 
