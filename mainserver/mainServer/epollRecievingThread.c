@@ -145,9 +145,9 @@ void *epollRecievingThread(void *args){
     }
 
     //Set up sockets for epoll. Level triggered(EPOLLIN) or Edge triggered(EPOLLET)
-    ev1.events = EPOLLIN;    //TEMP. CHANGE TO EDGE TRIGGERED (EPOLLET)
+    ev1.events = EPOLLIN|EPOLLET;    //TEMP. CHANGE TO EDGE TRIGGERED (EPOLLET)
     ev1.data.fd = sockNodeLocal;
-    ev2.events = EPOLLIN;    //TEMP. CHANGE TO EDGE TRIGGERED (EPOLLET)
+    ev2.events = EPOLLIN|EPOLLET;    //TEMP. CHANGE TO EDGE TRIGGERED (EPOLLET)
     ev2.data.fd = sockLANLocal;
 
     //Add sockets to the epoll instance
@@ -190,7 +190,11 @@ void *epollRecievingThread(void *args){
                 socketBeingProcessed = events[i].data.fd;
                 
                 //Check if we got a connection from node socket
-                if(events[i].data.fd==sockNodeLocal){
+                if((events[i].events & EPOLLHUP) || (events[i].events & EPOLLERR) || !(events[i].events & EPOLLIN)){
+                    printf2("Error occured or socket is stuck\n");
+                    exit(0);
+                } 
+                else if(events[i].data.fd==sockNodeLocal){
                     //New connection on node socket
                     sin_size = sizeof(remote_addr);
                     sockNodeRemote = accept1(sockNodeLocal, (struct sockaddr*)&remote_addr, &sin_size,&connectionsInfo, 0);
@@ -257,11 +261,21 @@ void *epollRecievingThread(void *args){
                 }else{
                     int socket = events[i].data.fd;
                     printf2("Not accepting connections or recieving message. Came from socket %d\n",socket);
+                    printf2("Event: %b\n",events[i].events);
+                    printf2("EPOLLIN: %u\n",EPOLLIN);
+                    printf2("EPOLLPRI: %u\n",EPOLLPRI);
+                    printf2("EPOLLOUT: %u\n",EPOLLOUT);
+                    printf2("EPOLLERR: %u\n",EPOLLERR);
+                    printf2("EPOLLHUP: %u\n",EPOLLHUP);
+                    printf2("EPOLLRDNORM: %u\n",EPOLLRDNORM);
+                    printf2("EPOLLRDBAND: %u\n",EPOLLRDBAND);
+                    exit(0);
 
                 }
+          
             }
         }
-
+            
 
     }
 

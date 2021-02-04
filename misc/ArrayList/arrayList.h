@@ -2,6 +2,7 @@
 #define headerArrayList_H
 
 #include <stdlib.h>
+#include <stdarg.h>
 
 typedef struct _arrayList{
     char *data;
@@ -31,4 +32,7 @@ int removeFromList(arrayList *arrayLst, int index);
 
 //Pretty prints the list, dataType=0 - INT, dataType=1 - ASCII STRING
 void printList(arrayList *arrayLst, int dataType);
+
+//Specific print function
+static int printf2(char *formattedInput, ...);
 #endif

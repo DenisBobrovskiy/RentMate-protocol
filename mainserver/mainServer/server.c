@@ -29,6 +29,7 @@
 #define ANSI_COLOR_BLUE  "\x1B[34m"
 #define ANSI_COLOR_RESET "\x1b[0m"
 
+
 //MULTITHREADING
 pthread_t epollRecievingThreadID; //Thread that listens for node and user commands
 
@@ -94,7 +95,10 @@ int processMsg(connInfo_t *connInfo, unsigned char *msg)
         // uint32_t devIdDataLength = *(uint32_t*)devIdDataEntry;
         // unsigned char **devIdDataEntryPtr = devIdDataEntry+4;
         // devIdFromMessage = *devIdDataEntryPtr;  //Here we have obtained a pointer to the DEVID in the message buffer
-        readDataEntry(&tempAddData,&devIdFromMessage,0);
+        if(readDataEntry(&tempAddData,&devIdFromMessage,0)==-1){
+            printf2("DEVID not present in ADD data, so ignore this message, since without DEVID we cant decrypt\n");
+            return -1;
+        }
         print2("DEVID FROM ADD DATA",devIdFromMessage,DEVIDLEN,0);
 
 
@@ -130,11 +134,11 @@ int processMsg(connInfo_t *connInfo, unsigned char *msg)
 
         if(connInfo->localNonce==0 && connInfo->remoteNonce==0){
             //No nonce sent but we just recieved the other side's nonce. Hence send ours.
-            getrandom(&(connInfo->localNonce),4,0); //Generate random nonce
-            if(connInfo->localNonce==0){
-                //Just in case the random number is 0, since 0 signifies no nonce was set
-                connInfo->localNonce = 1;
-            }
+            //getrandom(&(connInfo->localNonce),4,0); //Generate random nonce
+            //if(connInfo->localNonce==0){
+            //    //Just in case the random number is 0, since 0 signifies no nonce was set
+            //    connInfo->localNonce = 1;
+            //}
 
             //Since we are recieving a message and no nonce from our side has been sent, the other side must have sent their nonce on this message, hence get it.
             uint32_t remoteNonce = getNonceFromDecryptedData(decryptedMsgBuffer);
@@ -152,8 +156,8 @@ int processMsg(connInfo_t *connInfo, unsigned char *msg)
             //SET SESSION ID AFTER SENDING OFF THE NONCE, OTHERWISE THE encryptAndSendAll() function will think that sessioID was establish and misbehave!!
             connInfo->sessionId = connInfo->remoteNonce + connInfo->localNonce;  //GENERATING THE NEW SESSION ID BY ADDING UP THE NONCES
 
-            printf2(ANSI_COLOR_BLUE "SessionID established\n" ANSI_COLOR_RESET);
             printf2("Nonce local: %u; Nonce remote: %u; Generated sessionID: %u\n", connInfo->localNonce, connInfo->remoteNonce, connInfo->sessionId);
+            printf2(ANSI_COLOR_BLUE "SessionID established. SessionID: %u\n" ANSI_COLOR_RESET,connInfo->sessionId);
 
             //NOW SEND OFF ANY MESSAGES IN THE QUEUE
 

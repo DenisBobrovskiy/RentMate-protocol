@@ -116,16 +116,21 @@ void *socketThread(void *args){
         //Establish sessionID
         if(connInfo.localNonce==0){
             //Generate a localNonce
-            getrandom(&(connInfo.localNonce),4,0);
             unsigned char *encryptedPckData = NULL;
-            unsigned char *addPckData = NULL;
+            unsigned char *addPckData;
+            //For ADD pck data we need DEVID so we can identify which device we are talking to
+            initPckData(&addPckData);
+            appendToPckData(&addPckData,(unsigned char*)&(localNodeSettings.devId),DEVIDLEN);
             unsigned char *extraPckData = NULL;
 
-            //Send off local nonce
-            encryptAndSendAll(socketMain,0,&connInfo,&encryptionContext,encryptedPckData,addPckData,extraPckData,0,sendProcessingBuffer);
+
+            if(encryptAndSendAll(socketMain,0,&connInfo,&encryptionContext,encryptedPckData,addPckData,extraPckData,0,sendProcessingBuffer)==-1){
+                printf2("Failed sending the localNonce...\n");
+            }
 
             //Wait for remote nonce
             while(connInfo.sessionId==0){
+                printf2("Waiting\n");
                 printf2("Waiting to establish sessionID\n");
                 recvAll(&recvHolders,&connInfo,socketMain,recvProcessingBuffer,processMsg);
             }

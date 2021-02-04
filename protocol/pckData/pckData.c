@@ -45,6 +45,9 @@ the sessionId's dont get messed up.
 #include "ArrayList/arrayList.h"
 
 
+#define PCKDATAMESSAGES 1
+
+
 unsigned char settingsFileName[30] = "settings.conf";
 
 //inits all the defaults on a client side application
@@ -258,6 +261,13 @@ int encryptAndSendAll(int socket,
             return -1;
         }
         printf2("SessionId not set(detected at encryptAndSendAll()). The message will be sent but localNonce will be sent instead of sessionID. And sessionID send counter wont be incremented\n");
+
+        getrandom(&(finalConnInfo->localNonce),4,0); //Generate random nonce
+        if(finalConnInfo->localNonce==0){
+            //Just in case the random number is 0, since 0 signifies no nonce was set
+            connInfo->localNonce = 1;
+        }
+        printf2("Local nonce generated: %u\n",finalConnInfo->localNonce);
         uint32_t localNonce = htonl(finalConnInfo->localNonce);
         uint32_t msgLen = encryptPckData(ctx,pckData,addDataPck,extraDataPck,pckGSettings,localNonce,outBuf);
         // print2("MESSAGE:",outBuf,255,0);
@@ -525,6 +535,7 @@ int decryptPckData(mbedtls_gcm_context *ctx, unsigned char *encryptedMsg, unsign
 //datatype = 1: prints bytes in character form
 //datatype = 2: prints 32 bit numbers
 void print2(char labelMsg[255], unsigned char *data, int length, int datatype){
+#if PCKDATAMESSAGES
     int increments = 1;
     //data = unsigned char (numbers)
     if(datatype==0){
@@ -540,6 +551,7 @@ void print2(char labelMsg[255], unsigned char *data, int length, int datatype){
     }
 
     printf2("%s\n",labelMsg);
+    printf2("");
     for(int i =0; i<length;i+=increments){
         if(datatype==0){
              printf("%d ",*(data+i));
@@ -550,6 +562,7 @@ void print2(char labelMsg[255], unsigned char *data, int length, int datatype){
         }
     }
     printf("\n");
+#endif
 }
 
 //Gives you a pointer to addData for the msgPtr provided
@@ -565,37 +578,41 @@ unsigned char* getPointerToUserAddData(unsigned char *msgPtr){
 //NOTE: Use before decryption only if completely necessary or for unsensitive info (such as for devId, because you need to know it for decryption key)
 int readAddData(unsigned char *msgPtr, arrayList *addDataPointersAndLength){
     //Read only user defined add, ignore stuff such as versionNum and anything else protocol defined
-    // printf("Read add data func called\n");
-    // print2("READ ADD DATA MESSAGE PASSED:",msgPtr,255,0);
+     printf("Read add data func called\n");
+     print2("READ ADD DATA MESSAGE PASSED:",msgPtr,255,0);
     initList(addDataPointersAndLength,4+sizeof(unsigned char*));
+    //Acquire user add data length
+    uint32_t userAddLen = ntohl(*(uint32_t*)(msgPtr+4))-protocolSpecificAddLen;
+    printf2("User add len: %d\n",userAddLen);
     unsigned char *msgAddPtr = msgPtr + 4 + 4 + 4 + IVLEN + TAGLEN + protocolSpecificAddLen;
     int distance = 4 + 4 + 4 + IVLEN + TAGLEN + protocolSpecificAddLen;
-    // print2("Add data original:",msgAddPtr,36,0);
-    // printf2("distance: %d\n",distance);
+     print2("Add data original:",msgAddPtr,36,0);
+     printf2("distance: %d\n",distance);
     uint32_t pckDataLen = *(uint32_t*)msgAddPtr;
     pckDataLen = ntohl(pckDataLen);
-    // printf2("pckData len: %d\n",pckDataLen);
+     printf2("pckData len: %d\n",pckDataLen);
     uint32_t currentLen = 8;  //4(pckDataLen) + 4(pckDataIncrements)
     uint32_t currentElemLen = 0;
     unsigned char *currentDataPtr = NULL;
-    while(currentLen<pckDataLen){
-        // printf("current len: %d\n",currentLen);
+    while(currentLen<pckDataLen && currentLen<userAddLen){
+        printf2("current len: %d\n",currentLen);
         currentElemLen = *((uint32_t*)(msgAddPtr+currentLen));
         currentElemLen = ntohl(currentElemLen);
         unsigned char elementData[4+sizeof(unsigned char*)];
         *(uint32_t*)elementData = currentElemLen;
-        // printf("element len: %d\n",currentElemLen);
+         printf2("element len: %d\n",currentElemLen);
         unsigned char *addEntryPtr = msgAddPtr+currentLen+4;
         memcpy(elementData+4,&addEntryPtr, sizeof(unsigned char *));
         unsigned char **elemDataPtr = elementData+4;
-        printf("Add entry ptr original: %p\n", addEntryPtr);
-        printf("Add entry ptr copied: %p\n", *elemDataPtr);
+        printf2("Add entry ptr original: %p\n", addEntryPtr);
+        printf2("Add entry ptr copied: %p\n", *elemDataPtr);
         print2("ptr before",addEntryPtr,sizeof(unsigned char*),0);
         print2("ptr after",(elementData),sizeof(unsigned char*),0);
         // print2("Current add element data:",elementData,12,0);
         addToList(addDataPointersAndLength,elementData);
         currentLen+=(currentElemLen+4);
     }
+    printf2("Finished reading user add data\n");
     return 0;
 }
 
@@ -648,11 +665,11 @@ int readDecryptedData(unsigned char *decryptedData, arrayList *decryptedDataPoin
 }
 
 uint32_t getNonceFromDecryptedData(unsigned char *decryptedDataPtr){
-    return *(uint32_t*)decryptedDataPtr;
+    return ntohl(*(uint32_t*)decryptedDataPtr);
 }
 
 uint32_t getPckGSettingsFromDecryptedData(unsigned char *decryptedDataPtr){
-    return *(uint32_t*)(decryptedDataPtr+4);
+    return ntohl(*(uint32_t*)(decryptedDataPtr+4));
 }
 
 //Gets a pckData element from pointerToData at specific index, spitting out its length as return value and pointer to element itself is assigned to *ptrToElement
@@ -660,11 +677,12 @@ uint32_t getPckGSettingsFromDecryptedData(unsigned char *decryptedDataPtr){
 uint32_t getElementFromPckData(arrayList *pointersToData, unsigned char **ptrToElement, int index){
     unsigned char *tempElementPtr = getFromList(pointersToData,index);
     unsigned char *dataPtr;
-    memcpy(&dataPtr,(tempElementPtr+4),sizeof(unsigned char*));
     if(tempElementPtr==NULL){
         printf2("Wrong index in pckData!\n");
+        *ptrToElement = NULL;
         return -1;
     }
+    memcpy(&dataPtr,(tempElementPtr+4),sizeof(unsigned char*));
     
     // print2("Got element from list:",tempElementPtr,12,0);
     //print2("Pointer:",&dataPtr,10,0);
@@ -788,8 +806,12 @@ int recvAll(arrayList *recvHoldersList, connInfo_t *connInfo, int socket, unsign
 
         //------HANDLING CIRCULAR BUFFER AND SEEING IF MSG IS COMPLETE OR NOT
         recvHolderToUse->firstMsgSizeUsed += rs;
-        handleMsgData(connInfo, recvHolderToUse, rs, processBuf, processingMsgCallback);
+        int messagesRecieved = handleMsgData(connInfo, recvHolderToUse, rs, processBuf, processingMsgCallback);
 
+        //We break out of the loop if we get more than 1 message. This allows blocking recvAll to not be stuck forever
+        if(messagesRecieved>=1){
+            break;
+        }
 
     }while(rs>0);
 }
@@ -822,7 +844,9 @@ int handleMsgLen(recvHolder *recvHolderToUse, int rs){
 
 //Part of recvAll() function. Handles msgData processing.
 //Process buf (3rd parameter) must be of size of max msg length
+//Returns how many messages were obtained.
 int handleMsgData(connInfo_t *connInfo, recvHolder *recvHolderToUse, int rs, unsigned char *processMsgBuffer, processingCallback processingMsgCallback){
+    int recvMessagesCount = 0;
     unsigned char hasBufferCirculated = 0;
     printf2("First msg total size: %i/%i\n",recvHolderToUse->firstMsgSizeUsed,recvHolderToUse->firstMsgSize);
 
@@ -846,6 +870,7 @@ int handleMsgData(connInfo_t *connInfo, recvHolder *recvHolderToUse, int rs, uns
 
 
         //Call prcocessor method after message assigned to prcoessor buffer
+        recvMessagesCount+=1;
         processingMsgCallback(connInfo, processMsgBuffer);
 
         recvHolderToUse->firstMsgPtr = NULL;
@@ -868,7 +893,8 @@ int handleMsgData(connInfo_t *connInfo, recvHolder *recvHolderToUse, int rs, uns
 
             handleMsgLen(recvHolderToUse,recvHolderToUse->firstMsgSizeUsed);
             printf2("Second msg size: %i\n",recvHolderToUse->firstMsgSize);
-            handleMsgData(connInfo, recvHolderToUse, rs, processMsgBuffer,processingMsgCallback);
+            int messagesObtained = handleMsgData(connInfo, recvHolderToUse, rs, processMsgBuffer,processingMsgCallback);
+            recvMessagesCount+=messagesObtained;
         }else{
             recvHolderToUse->firstMsgSize = 0;
             recvHolderToUse->firstMsgSizeUsed = 0;
@@ -876,6 +902,7 @@ int handleMsgData(connInfo_t *connInfo, recvHolder *recvHolderToUse, int rs, uns
 
 
     }else{
+        //TODO
         //Finishing older message
         //printf2("Finishing older message\n");
     }
@@ -884,6 +911,9 @@ int handleMsgData(connInfo_t *connInfo, recvHolder *recvHolderToUse, int rs, uns
     if(hasBufferCirculated==0){
         circulateBuffer(recvHolderToUse,rs);
     }
+
+    //We need to return if we obtained (at least) 1 message so a blocking recv can be stopped. Our return values is how many total messages we have recieved(and processed)
+    return recvMessagesCount;
 }
 
 
@@ -1197,8 +1227,14 @@ int modifySetting(unsigned char *settingName, int settingLen, uint32_t newOption
 //Used to read a data entry in form of [4 bytes for length of data][8 bytes for pointer to data] from the arrayList of such entries. Used to read output of readAddData(), readDecryptedData(). Returns size of data entry and assigns dataEntryPtr to the pointer to that data
 int readDataEntry(arrayList *dataEntries, unsigned char **dataPtr, int index){
     unsigned char *dataEntryPtr = getFromList(dataEntries,index);
+    if(dataEntryPtr==NULL){
+        printf2("Wrong index for readDataEntry() function\n");
+        *dataPtr = NULL;
+        return -1;
+    }
     // print2("dataentry:",dataEntryPtr,16,0);
     unsigned char **tempPtrToPtr = (unsigned char **)(dataEntryPtr+4);
+    printf2("Finished reading user add data\n");
     *dataPtr = *tempPtrToPtr;
     return *(uint32_t*)dataEntryPtr;
 }
@@ -1206,13 +1242,15 @@ int readDataEntry(arrayList *dataEntries, unsigned char **dataPtr, int index){
 
 //Custom printf. Prepends a message with a prefix to simplify analysing output
 static int printf2(char *formattedInput, ...){
+#if PCKDATAMESSAGES
     int result;
     va_list args;
     va_start(args,formattedInput);
-    printf("pckData: ");
+    printf("pckDataLib: ");
     result = vprintf(formattedInput,args);
     va_end(args);
     return result;
+#endif
 }
 
 connInfo_t *findConnInfo(arrayList *connInfos, int socket){

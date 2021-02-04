@@ -508,7 +508,11 @@ int processMsg(){
 	pckDataToHostOrder(userAddPckData);
 	readAddData(processMsgBuffer,&pointersToAddData);
 	unsigned char *devId;
-	getElementFromPckData(&pointersToAddData,&devId,0);
+
+    if (getElementFromPckData(&pointersToAddData,&devId,0)==-1){
+        printf2("Cant get DEVID from message. Hence ignore this message since without DEVID we cant decrypt\n");
+        return -1;
+    }
 	print2("DEVID FROM ADD:",devId,DEVIDLEN,1);
 
 	//Find encryption key corresponding to this devId

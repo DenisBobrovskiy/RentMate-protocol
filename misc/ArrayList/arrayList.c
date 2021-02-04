@@ -3,6 +3,8 @@
 #include <stdio.h>
 #include <string.h>
 
+#define ARRAYLISTMESSAGES 1
+
 //All error codes!
 typedef enum _arrayListErrorCodes{
     //addToList
@@ -15,16 +17,16 @@ typedef enum _arrayListErrorCodes{
 
 
 int initList(arrayList *arrayLst, size_t dataSize){
-    //printf("Initializing a list\n");
+    //printf2("Initializing a list\n");
     //Allocate memory for list struct itself
     arrayLst = memset(arrayLst,0, sizeof(*arrayLst));
     arrayLst->listIncrement = 5;
     arrayLst->dataSize = dataSize;
     //Allocate memory for first block (depends on increments defined in .h file)
     char *tempDataMallocPtr;
-    //printf("Data size: %i\n", (arrayLst->dataSize));
-    //printf("List increment: %i\n", listIncrement);
-    //printf("Allocating %i\n",(arrayLst->dataSize)*listIncrement);
+    //printf2("Data size: %i\n", (arrayLst->dataSize));
+    //printf2("List increment: %i\n", listIncrement);
+    //printf2("Allocating %i\n",(arrayLst->dataSize)*listIncrement);
     if((tempDataMallocPtr = malloc((arrayLst->dataSize)*arrayLst->listIncrement))==NULL){
         return 1;
     }
@@ -33,10 +35,10 @@ int initList(arrayList *arrayLst, size_t dataSize){
     //Initialize values
     arrayLst->length = 0;
     arrayLst->allocated = arrayLst->listIncrement;
-    //printf("Init list success. Info:\n");
-    //printf("List increment: %i\n",arrayLst->listIncrement);
-    //printf("Data size: %i\n",arrayLst->dataSize);
-    //printf("Length: %i\n",arrayLst->length);
+    //printf2("Init list success. Info:\n");
+    //printf2("List increment: %i\n",arrayLst->listIncrement);
+    //printf2("Data size: %i\n",arrayLst->dataSize);
+    //printf2("Length: %i\n",arrayLst->length);
     //fflush(stdout);
     return 0;
     
@@ -47,19 +49,19 @@ int addToList(arrayList *arrayLst, void *data){
     //Check if enough space
     if(arrayLst->allocated > arrayLst->length){
         //Enough memory
-        //printf("Enough memory\n");
+        //printf2("Enough memory\n");
     }else{
         //Reallocating memory
-        printf("Not enough memory reallocating\n");
+        printf2("Not enough memory reallocating\n");
         //Geometric progression for listIncrement
         arrayLst->listIncrement = arrayLst->listIncrement*2;
         fflush(stdout);
         int newSize = (arrayLst->allocated)*(arrayLst->dataSize) + (arrayLst->dataSize)*arrayLst->listIncrement;
         char *tempReallocPtr;
-        printf("New memory size = %i\n", newSize);
+        printf2("New memory size = %i\n", newSize);
         //Realloc() error checking
         if ((tempReallocPtr = realloc((arrayLst->data), newSize))==NULL){
-            //printf("Realloc failed in arrayList\n");
+            //printf2("Realloc failed in arrayList\n");
             return 1;
         }
         arrayLst->data = tempReallocPtr;
@@ -67,13 +69,13 @@ int addToList(arrayList *arrayLst, void *data){
     }
     
     //Get pointer for last data index and set it to data provided
-    //printf("Adding data at pointer: Pointer address = %p    ", (arrayLst->data)+((arrayLst->length)*(arrayLst->dataSize)));
-    //printf("data being added %i    ",*((int*)data));
+    //printf2("Adding data at pointer: Pointer address = %p    ", (arrayLst->data)+((arrayLst->length)*(arrayLst->dataSize)));
+    //printf2("data being added %i    ",*((int*)data));
     //Copy data into arrayList
     memcpy((arrayLst->data)+((arrayLst->length)*(arrayLst->dataSize)), ((char*)data), arrayLst->dataSize);
     (arrayLst->length)+=1;
 
-    //printf("Added to list\n");
+    //printf2("Added to list\n");
     //Success
     return 0;
     
@@ -87,25 +89,25 @@ void* getFromList(arrayList *arrayLst, int index){
         return (arrayLst->data+index*(arrayLst->dataSize));
     }else{
         //ERROR
-        fprintf(stderr, "Wrong index in arrayList\n");
+        printf2("Wrong index in arrayList\n");
         return NULL;
     }
 }
 
 //RETURN found element index on success, -1 on failure. -2 on error. dataType = 0(int) 1(string) 2() 3()
 int findInList(arrayList *arrayLst, void *data, int dataLen){
-    //printf("Finding in list\n");
-    //printf("List length: %i", arrayLst->length);
+    //printf2("Finding in list\n");
+    //printf2("List length: %i", arrayLst->length);
     int i = 0;
     while(i < arrayLst->length){
         //Compare data
         if(memcmp(arrayLst->data+i*(arrayLst->dataSize),data,dataLen)==0){
-            //printf("Data found in arrayList!\n");
+            //printf2("Data found in arrayList!\n");
             return i;
         }
         i++;
     }
-    //printf("Failed to find in list :(");
+    //printf2("Failed to find in list :(");
     return -1;
 }
 //RETURN 0 on sucess -1 on failure
@@ -114,8 +116,8 @@ int removeFromList(arrayList *arrayLst, int index){
     if(index<arrayLst->length && index>=0){
         //Items after index
         int itemsToMove = arrayLst->length - index -1;
-        //printf("Items to move %i", itemsToMove);
-        //printf("Moving to %p from %p by %i",arrayLst->data+index*(arrayLst->dataSize),arrayLst->data+(index+1)*(arrayLst->dataSize), (arrayLst->dataSize)*itemsToMove);
+        //printf2("Items to move %i", itemsToMove);
+        //printf2("Moving to %p from %p by %i",arrayLst->data+index*(arrayLst->dataSize),arrayLst->data+(index+1)*(arrayLst->dataSize), (arrayLst->dataSize)*itemsToMove);
         memmove(arrayLst->data+index*(arrayLst->dataSize), arrayLst->data+(index+1)*(arrayLst->dataSize),(arrayLst->dataSize)*itemsToMove);
         arrayLst->length-=1;
         return 0;
@@ -129,12 +131,13 @@ int removeFromList(arrayList *arrayLst, int index){
 //Free dynamically allocated list
 int freeArrayList(arrayList *list){
     free(list->data);
+    return 1;
 }
 
 //dataType = 0(int) 1(string)
 void printList(arrayList *arrayLst, int dataType){
-    printf("PRINTING LIST:\n");
-    printf("Array length: %i\n",arrayLst->length);
+    printf2("PRINTING LIST:\n");
+    printf2("Array length: %i\n",arrayLst->length);
     int i =0;
     while (i<arrayLst->length){
         printf("Printing data at index %i\n", i);
@@ -152,4 +155,18 @@ void printList(arrayList *arrayLst, int dataType){
         fflush(stdout);
         i++;
     }
+}
+
+//Custom printf. Prepends a message with a prefix to simplify analysing output
+static int printf2(char *formattedInput, ...){
+#if ARRAYLISTMESSAGES 
+
+    int result;
+    va_list args;
+    va_start(args,formattedInput);
+    printf("arrayListLib: ");
+    result = vprintf(formattedInput,args);
+    va_end(args);
+    return result;
+#endif
 }

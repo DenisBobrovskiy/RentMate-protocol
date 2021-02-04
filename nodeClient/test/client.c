@@ -105,11 +105,12 @@ int main(){
 
 int processMsg(connInfo_t *connInfo, unsigned char *message){
     decryptPckData(&encryptionContext,message,decryptionBuffer);
+    printf2("Processing recieved message\n");
     if(connInfo->sessionId==0){
         //Get the remote nonce and establish sessionID
         connInfo->remoteNonce = getNonceFromDecryptedData(decryptionBuffer);
         connInfo->sessionId = connInfo->localNonce+connInfo->remoteNonce;
-        printf2(ANSI_COLOR_BLUE "SessionID established. SessionID: %d\n" ANSI_COLOR_WHITE,connInfo->sessionId);
+        printf2(ANSI_COLOR_BLUE "SessionID established. SessionID: %u\n" ANSI_COLOR_WHITE,connInfo->sessionId);
         return 0;
     }
 }
@@ -119,7 +120,7 @@ int composeNodeMessage(nodeCmdInfo *currentNodeCmdInfo, unsigned char **pckDataE
     initPckData(pckDataAdd);
     initPckData(pckDataEncrypted);
 
-    appendToPckData(pckDataAdd,currentNodeCmdInfo->devId,16);
+    appendToPckData(pckDataAdd,(unsigned char*)currentNodeCmdInfo->devId,DEVIDLEN);
 
     appendToPckData(pckDataEncrypted,(unsigned char*)&(currentNodeCmdInfo->devType),4);
     appendToPckData(pckDataEncrypted,(unsigned char*)&(currentNodeCmdInfo->opcode),4);

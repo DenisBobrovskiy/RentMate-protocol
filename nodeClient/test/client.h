@@ -4,10 +4,6 @@
 #include <stdint.h>
 #include "pckData/pckData.h"
 
-extern arrayList nodeCommandsQueue;
-extern pthread_mutex_t commandQueueAccessMux;
-extern mbedtls_gcm_context encryptionContext;
-extern arrayList recvHolders;
 
 int loadInNodeSettings();
 
@@ -24,6 +20,12 @@ typedef struct _nodeSettings_t{
     char devId[DEVIDLEN];
     uint32_t devType;
 }nodeSettings_t;
+
+extern arrayList nodeCommandsQueue;
+extern pthread_mutex_t commandQueueAccessMux;
+extern mbedtls_gcm_context encryptionContext;
+extern arrayList recvHolders;
+extern nodeSettings_t localNodeSettings;
 
 int composeNodeMessage(nodeCmdInfo *currentNodeCmdInfo, unsigned char **pckDataEncrypted, unsigned char **pckDataAdd);
 int freeNodeCmdInfo(nodeCmdInfo *cmdInfo);
