@@ -21,6 +21,7 @@
 // #define MAXDEVMSGLEN 255    //Max length of a message coming from a device
 #define protocolSpecificAddLen 4   //MODIFY THIS IF YOU ADD ANY NEW DATA TO PROTOCOL SPECIFIC ADD
 #define protocolSpecificExtraDataLen 0  //MODIFY THIS IF YOU ADD ANY NEW DATA TO PROTOCOL SPECIFIC EXTRA DATA (UNLIKE ADD IT CAN BE MODIFIED BY 3rd PARTIES)
+#define protocolSpecificEncryptedDataLen 8 // 4 bytes for nonce, 4 bytes for general settings field
 
 
 //STRUCTS---------------------------------------------------------------------------------------

@@ -52,7 +52,7 @@ int main(void){
     initBasicServerData(&connectionsInfo, &recvHolders, &devInfos, &commandsQueue, &globalSettings, 0);
 
     //Test stuff
-    
+
     // unsigned char testDevId[DEVIDLEN] = "TestTestTest1234";
     devInfo testDevInfo;
     memcpy(testDevInfo.devId,"TestTestTest1234",DEVIDLEN);
@@ -72,11 +72,14 @@ int processMsg(connInfo_t *connInfo, unsigned char *msg)
 
 
     //MESSAGE STRUCTURE
-    printf2("Message structure:\n");
-    for(int i = 0; i <MAXMSGLEN; i++){
-        printf("%d ", *(msg+i));
-    }
-    printf("\n");
+    uint32_t msgLen = *(uint32_t*)msg;
+    msgLen = ntohl(msgLen);
+    print2("Message structure(encrypted):",msg,msgLen,0);
+    // printf2("Message structure:\n");
+    // for(int i = 0; i <MAXMSGLEN; i++){
+    //     printf("%d ", *(msg+i));
+    // }
+    // printf("\n");
 
 
     //Extract the devID and hence its corresponding decryption key
@@ -99,7 +102,7 @@ int processMsg(connInfo_t *connInfo, unsigned char *msg)
             printf2("DEVID not present in ADD data, so ignore this message, since without DEVID we cant decrypt\n");
             return -1;
         }
-        print2("DEVID FROM ADD DATA",devIdFromMessage,DEVIDLEN,0);
+        // print2("DEVID FROM ADD DATA",devIdFromMessage,DEVIDLEN,0);
 
 
         for(int i = 0; i < devInfos.length; i ++){
@@ -122,6 +125,11 @@ int processMsg(connInfo_t *connInfo, unsigned char *msg)
         freeArrayList(&tempAddData);
 
         printf2("Message's DEVID: %.16s, KEY: %.16s\n",devInfo->devId,devInfo->key);
+
+        uint32_t test = 32;
+        print2("Local endianess",(unsigned char*)&test,4,0);
+        test = htonl(test);
+        print2("Network endianess",(unsigned char*)&test,4,0);
 
         //Decrypt the message
         initGCM(&gcmCtx,devInfo->key,KEYLEN*8);
@@ -176,7 +184,8 @@ int processMsg(connInfo_t *connInfo, unsigned char *msg)
         }
     }
 
-
+    //Clear out message buffer
+    memset(msg,0,MAXMSGLEN);
 
 }
 

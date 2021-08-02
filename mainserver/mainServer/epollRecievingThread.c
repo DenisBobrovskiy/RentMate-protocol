@@ -210,7 +210,7 @@ void *epollRecievingThread(void *args){
 
                     // Set a new connected socket as non-blocking
                      if(fcntl(sockNodeRemote,F_SETFL,O_NONBLOCK) == -1){
-                         perror("Failed settings a new node connection socket as non-blocking");
+                         perror("Failed setting a new node connection socket as non-blocking");
                          pthread_exit((void*)1);
                      }
                     //Set this socket up for epoll

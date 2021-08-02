@@ -4,6 +4,9 @@
 //PROTOCOL VERSION
 #define currentSystemVersion 0
 
+//WAKEUP INTERVAL
+#define wakeUpIntervalMs 3000 //Wake up interval in milliseconds
+
 //PORTS
 #define NodeConnectionsPort 3333
 #define LANConnectionsPort 4444

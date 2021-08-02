@@ -30,6 +30,8 @@ arrayList nodeCommandsQueue;
 arrayList recvHolders;
 pthread_mutex_t commandQueueAccessMux;
 
+uint32_t sizeOfSerializedCmdInfo = 0;
+
 
 int main(){
     // int yes = 1;
@@ -42,13 +44,15 @@ int main(){
     //LOAD IN THE settings.conf FILE and set the devId, devtype etc...
     loadInNodeSettings();
     initBasicClientData(&recvHolders,&globalSettings, localNodeSettings.devType);
+    initializeClient(); //Local function
 
     //Initialize node command queue
     pthread_mutex_init(&commandQueueAccessMux,NULL);
     initializeCommandQueue(&nodeCommandsQueue);
     nodeCmdInfo testBeaconCmdInfo;
-    composeBeaconPacket(&testBeaconCmdInfo,(unsigned char *)"TestBeacon1",12);
+    composeBeaconPacketCmdInfo(&testBeaconCmdInfo,(unsigned char *)"TestBeacon1",12);
     addToCommandQueue(&nodeCommandsQueue,&testBeaconCmdInfo);
+    // print2("First item in cmd queue",getFromList(&nodeCommandsQueue,0),sizeOfSerializedCmdInfo,0);
 
     // print2("DEVID: ",localNodeSettings.devId,DEVIDLEN,0);
     //initGCM(&encryptionContext, pointerToKey, KEYLEN*8);
@@ -84,22 +88,12 @@ int main(){
     //printf2("Msg sent\n");
 
     pthread_create(&socketThreadID,NULL,socketThread,NULL);
-
-    //while(1){
-    //    nodeCmdInfo currentCmdInfo;
-    //    int numOfCommands = getCommandQueueLength(&nodeCommandsQueue);
-    //    printf2("Num of commands to process: %d\n",numOfCommands);
-    //    for (int i = 0; i<numOfCommands; i++){
-    //        //Process each command
-    //        popCommandQueue(&nodeCommandsQueue,&currentCmdInfo);
-            
-    //    }
-    //    sleep_ms(50);
-    //}
-
-
     pthread_join(socketThreadID,NULL);
 
+}
+
+void initializeClient(){
+    sizeOfSerializedCmdInfo = DEVIDLEN+4+4+4+sizeof(unsigned char*);
 }
 
 
@@ -132,6 +126,7 @@ int composeNodeMessage(nodeCmdInfo *currentNodeCmdInfo, unsigned char **pckDataE
     // printf2("BOOOOM: %d\n",pckDataLen);
     // pckDataToNetworkOrder(pckDataAdd);
     // pckDataToNetworkOrder(pckDataEncrypted);
+    // print2("Final composed node message add data",*pckDataAdd,150,0);
     return 0;
 }
 
@@ -148,7 +143,7 @@ int composeNodeMessage(nodeCmdInfo *currentNodeCmdInfo, unsigned char **pckDataE
 //     return 0;
 // }
 
-int composeBeaconPacket(nodeCmdInfo *cmdInfo, unsigned char *beaconData, uint8_t beaconDataLen){
+int composeBeaconPacketCmdInfo(nodeCmdInfo *cmdInfo, unsigned char *beaconData, uint8_t beaconDataLen){
     memcpy(cmdInfo->devId,localNodeSettings.devId,DEVIDLEN);
     cmdInfo->devType = localNodeSettings.devType;
     cmdInfo->opcode = 0;
@@ -251,7 +246,7 @@ int initializeConnInfo(connInfo_t *connInfo, int socket){
 
 int initializeCommandQueue(arrayList *commandQueue){
     pthread_mutex_lock(&commandQueueAccessMux);
-    initList(&nodeCommandsQueue,sizeof(nodeCmdInfo));
+    initList(&nodeCommandsQueue,sizeOfSerializedCmdInfo);
     pthread_mutex_unlock(&commandQueueAccessMux);
     return 0;
 }
@@ -259,7 +254,9 @@ int initializeCommandQueue(arrayList *commandQueue){
 //Gets the first item in queue and removes it from the queue
 int popCommandQueue(arrayList *commandQueue, nodeCmdInfo *cmdInfo){
     pthread_mutex_lock(&commandQueueAccessMux);
-    cmdInfo = getFromList(commandQueue,0);
+    unsigned char *serializedCmdInfo;
+    serializedCmdInfo = getFromList(commandQueue,0);
+    deserializeCmdInfo(cmdInfo,serializedCmdInfo);
     removeFromList(commandQueue,0);
     pthread_mutex_unlock(&commandQueueAccessMux);
     return 0;
@@ -267,7 +264,9 @@ int popCommandQueue(arrayList *commandQueue, nodeCmdInfo *cmdInfo){
 
 int addToCommandQueue(arrayList *commandQueue, nodeCmdInfo *cmdInfo){
     pthread_mutex_lock(&commandQueueAccessMux);
-    addToList(commandQueue,cmdInfo);
+    unsigned char serializedCmdInfo[sizeOfSerializedCmdInfo];
+    serializeCmdInfo(serializedCmdInfo,cmdInfo);
+    addToList(commandQueue,serializedCmdInfo);
     pthread_mutex_unlock(&commandQueueAccessMux);
     return 0;
 }
@@ -285,6 +284,25 @@ void sleep_ms(int millis){
     ts.tv_sec = millis/1000;
     ts.tv_nsec = (millis%1000) * 1000000;
     nanosleep(&ts, NULL);
+}
+
+//The output structure should have size as variable: sizeOfSerializedCmdInfo.
+void serializeCmdInfo(unsigned char *output, nodeCmdInfo *input){
+    memcpy(output,input->devId,DEVIDLEN);
+    *((uint32_t*)(output+DEVIDLEN)) = input->devType;
+    *((uint32_t*)(output+DEVIDLEN +4)) = input->opcode;
+    *((uint32_t*)(output+DEVIDLEN +4 +4)) = input->argsLen;
+    memcpy(output+DEVIDLEN+4+4+4,&(input->args),sizeof(unsigned char*));
+
+}
+
+void deserializeCmdInfo(nodeCmdInfo *output, unsigned char *input){
+    memcpy(output->devId,input,DEVIDLEN);
+    output->devType = *((uint32_t*)(input+DEVIDLEN));
+    output->opcode = *((uint32_t*)(input+DEVIDLEN+4));
+    output->argsLen = *((uint32_t*)(input+DEVIDLEN+4+4));
+    memcpy(&(output->args),input+DEVIDLEN+4+4+4,sizeof(unsigned char*));
+
 }
 
 //Custom printf. Prepends a message with a prefix to simplify analysing output

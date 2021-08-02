@@ -9,7 +9,7 @@ int loadInNodeSettings();
 
 //Only used internally, dont expose to end program
 typedef struct _nodeCmdInfo{
-    char devId[DEVIDLEN];
+    unsigned char devId[DEVIDLEN];
     uint32_t devType;
     uint32_t opcode;
     uint32_t argsLen;
@@ -17,7 +17,7 @@ typedef struct _nodeCmdInfo{
 }nodeCmdInfo;
 
 typedef struct _nodeSettings_t{
-    char devId[DEVIDLEN];
+    unsigned char devId[DEVIDLEN];
     uint32_t devType;
 }nodeSettings_t;
 
@@ -27,11 +27,14 @@ extern mbedtls_gcm_context encryptionContext;
 extern arrayList recvHolders;
 extern nodeSettings_t localNodeSettings;
 
+
+void initializeClient();
+
 int composeNodeMessage(nodeCmdInfo *currentNodeCmdInfo, unsigned char **pckDataEncrypted, unsigned char **pckDataAdd);
 int freeNodeCmdInfo(nodeCmdInfo *cmdInfo);
 
 // int composeBeaconPacket(unsigned char *beaconData, uint8_t beaconDataLen, unsigned char **pckDataEncrypted, unsigned char **pckDataAdd);
-int composeBeaconPacket(nodeCmdInfo *cmdInfo, unsigned char *beaconData, uint8_t beaconDataLen);
+int composeBeaconPacketCmdInfo(nodeCmdInfo *cmdInfo, unsigned char *beaconData, uint8_t beaconDataLen);
 int initializeConnInfo(connInfo_t *connInfo, int socket);
 void sleep_ms(int millis);
 static int printf2(char *formattedInput, ...);
@@ -40,6 +43,8 @@ int initializeCommandQueue(arrayList *commandQueue);
 int popCommandQueue(arrayList *commandQueue, nodeCmdInfo *cmdInfo);
 int addToCommandQueue(arrayList *commandQueue, nodeCmdInfo *cmdInfo);
 int getCommandQueueLength(arrayList *commandQueue);
+void deserializeCmdInfo(nodeCmdInfo *output, unsigned char *input);
+void serializeCmdInfo(unsigned char *output, nodeCmdInfo *input);
 int processMsg(connInfo_t *connInfo, unsigned char *message);
 #endif
 

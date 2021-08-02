@@ -56,9 +56,9 @@
 
     **ADDData obligatory fields**:
 
-    | name                   | size(bytes)   | limits(bytes)|
-    | ---                    | :---:         | :---:        |
-    | versionNum*            | 4             | 0-3          |
+    | name                   | size(bytes)   |  limits(bytes) |
+    | ---                    | :---:         |          :---: |
+    | protocolVersion*       | 4             |            0-3 |
     * versionNum - used to accomodate for older firmware   <br><br>
     
     **ExtraData**:  
@@ -125,13 +125,13 @@
     1) extraData(visible non verifiable data(NOTE:Dont use for any important data))  
 
     You will also need ascilliary fields:
-    1) nonce(sessionID) **???WIP**
+    1) nonce(sessionID) (Established for every new connection (see Establishing Connection section for details))
     1) pckGSettings byte for packet settings
     1) AES-GCM context for encrypting the message **???WIP INTRODUCE SYSTEM TO HANDLE THIS**  
 
     Once you set up this data:  
     1)Encrypt the message with encryptPckData from pckData.c. This function will encrypt the message with AES-GCM and convert all protocol specific fields to network order. NOTE: Any data you send inside your pckData structures NEEDS to be converted to network order and then back to host order on reception  
-    2)
+    2) Send it through whatever way is appropriate.
 * ### Commands
     **Sent to initiate a certain command, based on an opCode, different opCode lists exist based on devType integer, devType = 0 is server**
 
@@ -139,6 +139,10 @@
     * #### Server to node
     * #### Client to server
     * #### Client to node
+
+* ### Establishing Connection
+  #### Establishing sessionID(nonce)
+  This step is done before any user data is exchanged for every single connection. This step assumes the encryption password is already known to both sides(i.e the very first connection has already been done). (Since in this initial iteration, server only sends data to nodes after the node sent its beacon packet to it). The client will send the first part of the sessionID in the beacon and then once server recieves it, it sends its part. Both of these numbers are randomly generated 32 bit numbers. Once the server and client both have both numbers, they add them to get the sessionID. For every message sent from server to client and from client to server the sessionID is incremented by 1. There are 2 different counters though! One for messages from server to client and one from client to server. So there will be 2 incremented copies of the original sessionID. This is necessary to avoid replay attacks! Once sessionID is established data can be exchanged!
 
 * ### Boot settings
     Those are stored in settings.conf and loaded on server/client startup in a plaintext file in format of <key>:<value> one pair per line  

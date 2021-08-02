@@ -46,6 +46,12 @@ the sessionId's dont get messed up.
 
 
 #define PCKDATAMESSAGES 1
+#define ANSI_BACKGROUND_BLUE "\e[44m"
+#define ANSI_BACKGROUND_GREEN "\e[42m"
+#define ANSI_BACKGROUND_DEFAULT "\e[49m"
+#define ANSI_COLOR_BLACK "\e[30m"
+#define ANSI_COLOR_DEFAULT "\e[39m"
+#define ANSI_COLOR_LIGHTGRAY1 "\e[40;38;5;247m"
 
 
 unsigned char settingsFileName[30] = "settings.conf";
@@ -246,6 +252,7 @@ int encryptAndSendAll(int socket,
     //}
 
     //Check if sessionId is established or not
+    printf2("encryptAndSendAll called\n");
     if(finalConnInfo->sessionId!=0){
         //The sessionId is set!. Just increment the send counter by 1 before sending the message.
         finalConnInfo->sendSessionIncrements+=1;
@@ -274,6 +281,7 @@ int encryptAndSendAll(int socket,
         sendall(socket,outBuf,msgLen);
     }
 
+    printf2("Message sent.\n");
     printf2("Current SessionId: %d\n",finalConnInfo->sessionId);
     return 0;
 }
@@ -339,7 +347,7 @@ int encryptPckData(mbedtls_gcm_context *ctx,
         unsigned char *outputBuf
         )
 {
-    printf2("Encrypting the message\n");
+    printf2("Encrypting message\n");
     uint32_t pckDataLen = 0;
     if(pckData!=0){
         pckDataLen = *(uint32_t*)pckData;
@@ -364,9 +372,9 @@ int encryptPckData(mbedtls_gcm_context *ctx,
     extraDataLen+=userExtraDataLen;
 
     uint32_t msgLen = 4 + 4 + 4 + IVLEN + TAGLEN + addLen + extraDataLen + 4 + 4 + pckDataLen;
-    printf2("Msg len: %d\n",msgLen);
-    printf2("Add len: %d\n",addLen);
-    printf2("Extra data len: %d\n",extraDataLen);
+    // printf2("Msg len: %d\n",msgLen);
+    // printf2("Add len: %d\n",addLen);
+    // printf2("Extra data len: %d\n",extraDataLen);
 
     //Unencrypted data
     unsigned char *msgLenPtr = outputBuf;
@@ -413,7 +421,7 @@ int encryptPckData(mbedtls_gcm_context *ctx,
     if(userExtraDataLen>0){
         memcpy(extraDataPckPtr,extraDataPck,userExtraDataLen);
     }
-    printf2("MSG B4 ENCRYPTION\n");
+    // printf2("MSG B4 ENCRYPTION\n");
     print2("Msg before encryption:",outputBuf,msgLen,0);
     //Encrypt (and output tag into msg during encryption)
     if(addLen==0){
@@ -462,10 +470,14 @@ int pckDataToHostOrder(unsigned char *pckData){
         return -1;
     }
     //Total len
-    uint32_t totalLen = ntohl(*(uint32_t*)pckData);
+    uint32_t totalLen = (*(uint32_t*)pckData);
+    // printf2("Total len = %d\n",totalLen);
+    totalLen = ntohl(totalLen);
+    // printf2("Total len = %d\n",totalLen);
     *(uint32_t*)pckData = totalLen;
     //Pck increments (unnecessary)
-    *(uint32_t*)(pckData+4) = htonl(*(uint32_t*)(pckData+4));
+    *(uint32_t*)(pckData+4) = ntohl(*(uint32_t*)(pckData+4));
+    printf2("Total len(during pckDataToHoseOrder function): %d\n",totalLen);
 
     //Loop every element and convert its len to net order
     uint32_t currentLen = 8;
@@ -486,7 +498,8 @@ int pckDataToHostOrder(unsigned char *pckData){
 //Returns 0 on success, -1 on error.
 int decryptPckData(mbedtls_gcm_context *ctx, unsigned char *encryptedMsg, unsigned char *outputBuf){
     //Plaintext data
-    printf2("ENCRYPTED MSG:",encryptedMsg,255,0);
+    // print2("ENCRYPTED MSG:",encryptedMsg,255,0);
+    printf2("Decrypting message\n");
     unsigned char *msgLenPtr = encryptedMsg;
     unsigned char *addLenPtr = msgLenPtr+4;
     unsigned char *extraDataLenPtr = addLenPtr+4;
@@ -494,9 +507,9 @@ int decryptPckData(mbedtls_gcm_context *ctx, unsigned char *encryptedMsg, unsign
     uint32_t msgLen = ntohl(*(uint32_t*)msgLenPtr);
     uint32_t addLen = ntohl(*(uint32_t*)addLenPtr);
     uint32_t extraDataLen = ntohl(*(uint32_t*)extraDataLenPtr);
-    printf2("msgLen: %d\n",msgLen);
-    printf2("addLen: %d\n",addLen);
-    printf2("extraDataLen: %d\n",extraDataLen);
+    // printf2("msgLen: %d\n",msgLen);
+    // printf2("addLen: %d\n",addLen);
+    // printf2("extraDataLen: %d\n",extraDataLen);
     unsigned char *ivPtr = extraDataLenPtr+4;
     unsigned char *tagPtr = ivPtr+IVLEN;
     unsigned char *addPtr = tagPtr+TAGLEN;
@@ -505,27 +518,37 @@ int decryptPckData(mbedtls_gcm_context *ctx, unsigned char *encryptedMsg, unsign
     unsigned char *extraDataPckPtr = extraDataPtr+protocolSpecificExtraDataLen;
     unsigned char *encryptDataPtr = extraDataPtr+extraDataLen;
     uint32_t eDataLen = msgLen - (4 + 4 + 4 +IVLEN + TAGLEN + addLen);
+    /* printf2("Length to ecnrypted data: %d\n",addLen+extraDataLen); */
+    /* print2("PRINTING ENCYRPTED DATA",encryptDataPtr,100,0); */
     // print2("edata:",encryptDataPtr,eDataLen,0);
-    printf2("eDataLen: %d\n",eDataLen);
+    // printf2("eDataLen: %d\n",eDataLen);
     //Encrypted data will be handled after decryption in separate buffer cause we cant decrypt and output data in same buffer, unlike with encryption
 
     //Decrypt
     if(addLen==0){
         addPtr = NULL;
     }
+
+    print2("Message before decryption:",encryptedMsg,msgLen,0);
+
     if(decryptGcm(ctx,encryptDataPtr,eDataLen,ivPtr,IVLEN,addPtr,addLen,tagPtr,TAGLEN,outputBuf)!=0){
         printf2("Failed decrypting data\n");
         return -1;
     }
-    unsigned char *pckDataPtr = outputBuf+4+4;
+
+    unsigned char *pckDataPtr = outputBuf+protocolSpecificEncryptedDataLen;
+    // print2("TESTING PCK DATA PTR:",outputBuf,MAXMSGLEN,0);
     //Deserialize data
     *(uint32_t*)outputBuf = ntohl(*(uint32_t*)outputBuf);  //Nonce
     *(uint32_t*)(outputBuf+4) = ntohl(*(uint32_t*)(outputBuf+4));  //PckGSettings
-    pckDataToHostOrder(pckDataPtr);
-    if((addLen-protocolSpecificAddLen)>0){
-        pckDataToHostOrder(addPckDataPtr);
+    print2("Printing decrypted data:",pckDataPtr-protocolSpecificEncryptedDataLen,40,0);
+    if(eDataLen>protocolSpecificEncryptedDataLen){
+        pckDataToHostOrder(pckDataPtr);
+        if((addLen-protocolSpecificAddLen)>0){
+            pckDataToHostOrder(addPckDataPtr);
+        }
+        print2("Message after decryption(only the encrypedPckData part!):",outputBuf,msgLen,0);
     }
-    print2("Output buffer decrypted data:",outputBuf,eDataLen,0);
     return 0;
 
 }
@@ -554,6 +577,25 @@ void print2(char labelMsg[255], unsigned char *data, int length, int datatype){
     printf2("");
     for(int i =0; i<length;i+=increments){
         if(datatype==0){
+            if(i==0){
+                printf(ANSI_COLOR_DEFAULT);
+                printf(ANSI_BACKGROUND_BLUE);
+            }else if(i==4){
+                printf(ANSI_COLOR_BLACK);
+                printf(ANSI_BACKGROUND_GREEN);
+            }else if(i==8){
+                printf(ANSI_COLOR_DEFAULT);
+                printf(ANSI_BACKGROUND_BLUE);
+            }else if(i==12){
+                printf(ANSI_COLOR_BLACK);
+                printf(ANSI_BACKGROUND_GREEN);
+            }else if(i==24){
+                printf(ANSI_COLOR_DEFAULT);
+                printf(ANSI_BACKGROUND_BLUE);
+            }else if(i==40){
+                printf(ANSI_COLOR_BLACK);
+                printf(ANSI_BACKGROUND_GREEN);
+            }
              printf("%d ",*(data+i));
         }else if(datatype==1){
              printf("%c ",*(data+i));
@@ -561,6 +603,8 @@ void print2(char labelMsg[255], unsigned char *data, int length, int datatype){
              printf("%d ", *(uint32_t*)(data+i));
         }
     }
+    printf(ANSI_BACKGROUND_DEFAULT);
+    printf(ANSI_COLOR_DEFAULT);
     printf("\n");
 #endif
 }
@@ -578,41 +622,41 @@ unsigned char* getPointerToUserAddData(unsigned char *msgPtr){
 //NOTE: Use before decryption only if completely necessary or for unsensitive info (such as for devId, because you need to know it for decryption key)
 int readAddData(unsigned char *msgPtr, arrayList *addDataPointersAndLength){
     //Read only user defined add, ignore stuff such as versionNum and anything else protocol defined
-     printf("Read add data func called\n");
-     print2("READ ADD DATA MESSAGE PASSED:",msgPtr,255,0);
+     // printf("Read add data func called\n");
+     // print2("READ ADD DATA MESSAGE PASSED:",msgPtr,255,0);
     initList(addDataPointersAndLength,4+sizeof(unsigned char*));
     //Acquire user add data length
     uint32_t userAddLen = ntohl(*(uint32_t*)(msgPtr+4))-protocolSpecificAddLen;
-    printf2("User add len: %d\n",userAddLen);
+    // printf2("User add len: %d\n",userAddLen);
     unsigned char *msgAddPtr = msgPtr + 4 + 4 + 4 + IVLEN + TAGLEN + protocolSpecificAddLen;
     int distance = 4 + 4 + 4 + IVLEN + TAGLEN + protocolSpecificAddLen;
-     print2("Add data original:",msgAddPtr,36,0);
-     printf2("distance: %d\n",distance);
+     // print2("Add data original:",msgAddPtr,36,0);
+     // printf2("distance: %d\n",distance);
     uint32_t pckDataLen = *(uint32_t*)msgAddPtr;
     pckDataLen = ntohl(pckDataLen);
-     printf2("pckData len: %d\n",pckDataLen);
+     // printf2("pckData len: %d\n",pckDataLen);
     uint32_t currentLen = 8;  //4(pckDataLen) + 4(pckDataIncrements)
     uint32_t currentElemLen = 0;
     unsigned char *currentDataPtr = NULL;
     while(currentLen<pckDataLen && currentLen<userAddLen){
-        printf2("current len: %d\n",currentLen);
+        // printf2("current len: %d\n",currentLen);
         currentElemLen = *((uint32_t*)(msgAddPtr+currentLen));
         currentElemLen = ntohl(currentElemLen);
         unsigned char elementData[4+sizeof(unsigned char*)];
         *(uint32_t*)elementData = currentElemLen;
-         printf2("element len: %d\n",currentElemLen);
+         // printf2("element len: %d\n",currentElemLen);
         unsigned char *addEntryPtr = msgAddPtr+currentLen+4;
         memcpy(elementData+4,&addEntryPtr, sizeof(unsigned char *));
         unsigned char **elemDataPtr = elementData+4;
-        printf2("Add entry ptr original: %p\n", addEntryPtr);
-        printf2("Add entry ptr copied: %p\n", *elemDataPtr);
-        print2("ptr before",addEntryPtr,sizeof(unsigned char*),0);
-        print2("ptr after",(elementData),sizeof(unsigned char*),0);
+        // printf2("Add entry ptr original: %p\n", addEntryPtr);
+        // printf2("Add entry ptr copied: %p\n", *elemDataPtr);
+        // print2("ptr before",addEntryPtr,sizeof(unsigned char*),0);
+        // print2("ptr after",(elementData),sizeof(unsigned char*),0);
         // print2("Current add element data:",elementData,12,0);
         addToList(addDataPointersAndLength,elementData);
         currentLen+=(currentElemLen+4);
     }
-    printf2("Finished reading user add data\n");
+    // printf2("Finished reading user add data\n");
     return 0;
 }
 
@@ -699,8 +743,9 @@ uint32_t getElementFromPckData(arrayList *pointersToData, unsigned char **ptrToE
 //socket - socket to recieve data from.
 //*processBuf - a buffer to which the message gets stored to. Once full message is recieved the callback function should access this buffer to get the message. The first 4 bytes of every message is its length in uint32_t in network order. Buffer gets overriden after every new function call. So use separated buffers in multithreaded environments
 //processingCallback - a function pointer, this function gets called after a complete message is recieved and is the final message (in its raw form, encrypted and stuff)
+//Returns: -1 = error; 1 = connection closed
 int recvAll(arrayList *recvHoldersList, connInfo_t *connInfo, int socket, unsigned char *processBuf, processingCallback processingMsgCallback){
-    printf2("recvAll started\n");
+    printf2("recvAll started on socket %d\n",socket);
 
     //Get connInfo(created during connect1() or accept1()) for this socket
     if(connInfo==NULL){
@@ -789,6 +834,7 @@ int recvAll(arrayList *recvHoldersList, connInfo_t *connInfo, int socket, unsign
             close(socket);
 
             //Set corresponding recvHolder's socket to -1 meaning other sockets can take it, it also clears recvHolder's fields
+            printf2("Connection closed on socket: %d\n",socket);
             resetRecvHolder(recvHolderToUse,-1);
 
             return 1;
@@ -824,11 +870,11 @@ int handleMsgLen(recvHolder *recvHolderToUse, int rs){
         printf2("Assigning starting pointer to msg\n");
         recvHolderToUse->firstMsgPtr = (recvHolderToUse->recvQueue+recvHolderToUse->sizeUsed);
     }
-    printf2("Msg length:\n");
-    for(int i = 0; i<4; i ++){
-        printf("%d ",*(recvHolderToUse->firstMsgPtr+i));
-    }
-    printf("\n");
+    // printf2("Msg length:\n");
+    // for(int i = 0; i<4; i ++){
+    //     printf("%d ",*(recvHolderToUse->firstMsgPtr+i));
+    // }
+    // printf("\n");
 
     //------GETTING MESSAGE LENGTH
     //If partial length set msgSize to amount of bytes recieved to let the next time recv() is called know it and finish it off
@@ -1234,7 +1280,7 @@ int readDataEntry(arrayList *dataEntries, unsigned char **dataPtr, int index){
     }
     // print2("dataentry:",dataEntryPtr,16,0);
     unsigned char **tempPtrToPtr = (unsigned char **)(dataEntryPtr+4);
-    printf2("Finished reading user add data\n");
+    // printf2("Finished reading user add data\n");
     *dataPtr = *tempPtrToPtr;
     return *(uint32_t*)dataEntryPtr;
 }
@@ -1246,7 +1292,7 @@ static int printf2(char *formattedInput, ...){
     int result;
     va_list args;
     va_start(args,formattedInput);
-    printf("pckDataLib: ");
+    printf(ANSI_COLOR_LIGHTGRAY1 "pckDataLib: " ANSI_COLOR_DEFAULT);
     result = vprintf(formattedInput,args);
     va_end(args);
     return result;

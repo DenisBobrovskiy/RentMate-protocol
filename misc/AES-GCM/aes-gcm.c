@@ -7,6 +7,8 @@
 
 //#define ivLen 12
 //#define tagLen 16
+#define ASCII_COLOR_DARKMAGENTA "\e[40;38;5;161m"
+#define ASCII_COLOR_DEFAULT "\e[39m"
 
 void printCryptData(unsigned char* cryptData,size_t length){
     //printf("Printing crypt data:\n");
@@ -19,10 +21,10 @@ void printCryptData(unsigned char* cryptData,size_t length){
 
 //Normally use 128 bit key so set keybits to 128
 int initGCM(mbedtls_gcm_context *ctx, unsigned char *gcmKey, unsigned int keybits){
-    printf("Initializing AES-GCM\n");
+    // printf("Initializing AES-GCM\n");
     //Initialize gcm context
     mbedtls_gcm_init(ctx);
-    printf("Context initialized\n");
+    // printf("Context initialized\n");
     //Associate gcm context with key and set cipher to AES
     if(mbedtls_gcm_setkey(ctx,MBEDTLS_CIPHER_ID_AES,gcmKey,keybits)!=0){
         //ERROR
@@ -56,7 +58,7 @@ int encryptGcm(mbedtls_gcm_context *gcmCtx,
             return 2;
         }
     }
-    printf("gcm encryption success!\n");
+    printf(ASCII_COLOR_DARKMAGENTA "AES_GCM lib: " ASCII_COLOR_DEFAULT "gcm encryption success!\n");
     return 0;
 }
 
@@ -85,6 +87,6 @@ int decryptGcm(mbedtls_gcm_context *gcmCtx,
             return 3;
         }
     }
-    printf("gcm decrypt success!\n");
+    printf(ASCII_COLOR_DARKMAGENTA "AES_GCM lib: " ASCII_COLOR_DEFAULT "gcm decrypt success!\n");
     return 0;
 }
