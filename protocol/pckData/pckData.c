@@ -28,6 +28,7 @@ the sessionId's dont get messed up.
 
 */
 #include <stdio.h>
+#include <stdbool.h>
 #include <stddef.h>
 #include <sys/socket.h>
 #include <string.h>
@@ -52,6 +53,29 @@ the sessionId's dont get messed up.
 #define ANSI_COLOR_BLACK "\e[30m"
 #define ANSI_COLOR_DEFAULT "\e[39m"
 #define ANSI_COLOR_LIGHTGRAY1 "\e[40;38;5;247m"
+#define ANSI_COLOR_DARKGRAY1 "\e[40;38;5;239m"
+#define ANSI_COLOR_ORANGE "\e[40;38;5;202m"
+#define ANSI_COLOR_CYAN "\e[40;38;5;42m"
+#define ANSI_COLOR_BACKGROUND_CYAN "\e[40;48;5;42m"
+#define ANSI_COLOR_BACKGROUND_ORANGE "\e[40;48;5;202m"
+#define ANSI_COLOR_BACKGROUND_DARKBLUE "\e[40;48;5;31m"
+#define ANSI_COLOR_BACKGROUND_LIGHTYELLOW "\e[40;48;5;220m"
+#define ANSI_COLOR_BACKGROUND_DARKGREEN "\e[40;48;5;34m"
+#define ANSI_COLOR_BACKGROUND_RED "\e[40;48;5;160m"
+
+
+//COLORS FOR MESSAGE PRINT (different sections of it)
+#define ANSI_COLOR_BACKGROUND_MESSAGE1 "\e[40;48;5;22m" //Total length color
+#define ANSI_COLOR_BACKGROUND_MESSAGE2 "\e[40;48;5;24m" //Add length color
+#define ANSI_COLOR_BACKGROUND_MESSAGE3 "\e[40;48;5;26m" //Extra length color
+#define ANSI_COLOR_BACKGROUND_MESSAGE4 "\e[40;48;5;96m" //IV length color
+#define ANSI_COLOR_BACKGROUND_MESSAGE5 "\e[40;48;5;99m" //Tag length color
+#define ANSI_COLOR_BACKGROUND_MESSAGE6 "\e[40;48;5;239m" //protocol add data color
+#define ANSI_COLOR_BACKGROUND_MESSAGE7 "\e[40;48;5;239m" //protocol extra data color
+#define ANSI_COLOR_BACKGROUND_MESSAGE8 "\e[40;48;5;239m" //protocol encrypted data color
+#define ANSI_COLOR_BACKGROUND_MESSAGE9 "\e[40;48;5;124m" //encrypted section color (if it is fully encrypted)
+
+
 
 
 unsigned char settingsFileName[30] = "settings.conf";
@@ -477,7 +501,7 @@ int pckDataToHostOrder(unsigned char *pckData){
     *(uint32_t*)pckData = totalLen;
     //Pck increments (unnecessary)
     *(uint32_t*)(pckData+4) = ntohl(*(uint32_t*)(pckData+4));
-    printf2("Total len(during pckDataToHoseOrder function): %d\n",totalLen);
+    /* printf2("Total len(during pckDataToHostOrder function): %d\n",totalLen); */
 
     //Loop every element and convert its len to net order
     uint32_t currentLen = 8;
@@ -541,7 +565,7 @@ int decryptPckData(mbedtls_gcm_context *ctx, unsigned char *encryptedMsg, unsign
     //Deserialize data
     *(uint32_t*)outputBuf = ntohl(*(uint32_t*)outputBuf);  //Nonce
     *(uint32_t*)(outputBuf+4) = ntohl(*(uint32_t*)(outputBuf+4));  //PckGSettings
-    print2("Printing decrypted data:",pckDataPtr-protocolSpecificEncryptedDataLen,40,0);
+    /* print2("Printing decrypted data:",pckDataPtr-protocolSpecificEncryptedDataLen,40,0); */
     if(eDataLen>protocolSpecificEncryptedDataLen){
         pckDataToHostOrder(pckDataPtr);
         if((addLen-protocolSpecificAddLen)>0){
@@ -603,6 +627,119 @@ void print2(char labelMsg[255], unsigned char *data, int length, int datatype){
              printf("%d ", *(uint32_t*)(data+i));
         }
     }
+    printf(ANSI_BACKGROUND_DEFAULT);
+    printf(ANSI_COLOR_DEFAULT);
+    printf("\n");
+#endif
+}
+
+
+void printMessage(char labelMsg[255], unsigned char *data, int datatype, bool isEncrypted){
+#if PCKDATAMESSAGES
+    int increments = 1;
+    //data = unsigned char (numbers)
+    if(labelMsg!=NULL){
+        printf2("%s\n",labelMsg);
+    }
+    printf2("");
+    for(int i =0; i<40;i+=increments){
+        if(i==0){
+            printf(ANSI_COLOR_DEFAULT);
+            printf(ANSI_COLOR_BACKGROUND_MESSAGE1);
+        }else if(i==4){
+            printf(ANSI_COLOR_DEFAULT);
+            printf(ANSI_COLOR_BACKGROUND_MESSAGE2);
+        }else if(i==8){
+            printf(ANSI_COLOR_DEFAULT);
+            printf(ANSI_COLOR_BACKGROUND_MESSAGE3);
+        }else if(i==12){
+            printf(ANSI_COLOR_DEFAULT);
+            printf(ANSI_COLOR_BACKGROUND_MESSAGE4);
+        }else if(i==24){
+            printf(ANSI_COLOR_DEFAULT);
+            printf(ANSI_COLOR_BACKGROUND_MESSAGE5);
+        }
+         printf("%d ",*(data+i));
+    }
+    uint32_t extraDataLen, addDataLen, encryptedDataLen;
+    unsigned char *extraDataPtr, *addDataPtr, *encryptedDataPtr;
+    unsigned char *extraDataPckDataPtr, *addDataPckDataPtr, *encryptedDataPckDataPtr;
+    uint32_t totalLen = *((uint32_t*)data);
+    addDataLen = *((uint32_t*)(data+4));
+    extraDataLen = *((uint32_t*)(data+8));
+
+    //Deserialize lengths if needed
+    if(isEncrypted){
+        totalLen = ntohl(totalLen);
+        addDataLen = ntohl(addDataLen);
+        extraDataLen = ntohl(extraDataLen);
+    }
+    encryptedDataLen = totalLen-(4+4+4+IVLEN+TAGLEN+extraDataLen+addDataLen);
+    extraDataPtr = data+12+IVLEN+TAGLEN;
+    addDataPtr = data+12+IVLEN+TAGLEN+extraDataLen;
+    encryptedDataPtr = data+12+IVLEN+TAGLEN+extraDataLen+addDataLen;
+    extraDataPckDataPtr = extraDataPtr+protocolSpecificExtraDataLen;
+    addDataPckDataPtr = addDataPtr+protocolSpecificAddLen;
+    encryptedDataPckDataPtr = encryptedDataPtr+protocolSpecificEncryptedDataLen;
+
+    //Deserialize pckData if needed
+    if(isEncrypted){
+        if((addDataLen-protocolSpecificAddLen)!=0){
+            pckDataToHostOrder(addDataPckDataPtr);
+        }
+        if((extraDataLen-protocolSpecificExtraDataLen)!=0){
+            pckDataToHostOrder(extraDataPckDataPtr);
+        }
+    }
+
+
+    //PRINTING EXTRA DATA
+    printf(ANSI_BACKGROUND_DEFAULT);
+    printf(" |||extraData||| ");
+    printf(ANSI_COLOR_BACKGROUND_MESSAGE6);
+    for(int i = 0; i<protocolSpecificExtraDataLen; i++){
+        printf("%d ", *(extraDataPtr+i));
+    }
+    if((extraDataLen-protocolSpecificExtraDataLen)!=0){
+        printPckData(NULL,extraDataPckDataPtr,2);
+    }
+    printf(ANSI_BACKGROUND_DEFAULT);
+    printf(" |||extraDataOver||| ");
+
+    //PRINTING ADD DATA
+    printf(" |||addData||| ");
+    printf(ANSI_COLOR_BACKGROUND_MESSAGE7);
+    for(int i = 0; i<protocolSpecificAddLen; i++){
+        printf("%d ", *(addDataPtr+i));
+    }
+    if((addDataLen-protocolSpecificAddLen)!=0){
+        printPckData(NULL,addDataPckDataPtr,1);
+    }
+    printf(ANSI_BACKGROUND_DEFAULT);
+    printf(" |||addDataOver||| ");
+
+    //PRINTING ENCRYPTED DATA
+    printf(" |||encryptedData||| ");
+    if(isEncrypted){
+        printf(ANSI_COLOR_BACKGROUND_MESSAGE9);
+        for(int i = 0; i<encryptedDataLen; i++){
+            printf("%d ",*(encryptedDataPtr+i));
+        }
+
+    }else{
+        printf(ANSI_COLOR_BACKGROUND_MESSAGE8);
+        for(int i = 0; i<protocolSpecificEncryptedDataLen; i++){
+            printf("%d ", *(encryptedDataPtr+i));
+        }
+        if((encryptedDataLen-protocolSpecificEncryptedDataLen)!=0){
+            printPckData(NULL,encryptedDataPckDataPtr,0);
+        }
+
+    }
+    printf(ANSI_BACKGROUND_DEFAULT);
+    printf(" |||encryptedDataOver||| ");
+
+
     printf(ANSI_BACKGROUND_DEFAULT);
     printf(ANSI_COLOR_DEFAULT);
     printf("\n");
@@ -836,6 +973,7 @@ int recvAll(arrayList *recvHoldersList, connInfo_t *connInfo, int socket, unsign
             //Set corresponding recvHolder's socket to -1 meaning other sockets can take it, it also clears recvHolder's fields
             printf2("Connection closed on socket: %d\n",socket);
             resetRecvHolder(recvHolderToUse,-1);
+            
 
             return 1;
         }
@@ -860,6 +998,7 @@ int recvAll(arrayList *recvHoldersList, connInfo_t *connInfo, int socket, unsign
         }
 
     }while(rs>0);
+    return 0;
 }
 
 //Part of recvAll() function. Handles message length
@@ -1308,3 +1447,96 @@ connInfo_t *findConnInfo(arrayList *connInfos, int socket){
     }
     return NULL;
 }
+
+//Returns 0 if successfully removed connInfo. 1 if connInfo was not found.
+int removeConnInfo(arrayList *connInfos, int socket){
+    for(int i = 0; i <connInfos->length; i++){
+        connInfo_t *tempConnInfo = getFromList(connInfos,i);
+        if(tempConnInfo->socket == socket){
+            removeFromList(connInfos,i);
+            return 0;
+        }
+    }
+    return 1;
+}
+
+
+//Prints pckData color coded (different colors for different segments of the structure). You can choose color using the colorscheme argument: 0 - orange/cyan, 1 - darkBlue/lightYellow
+void printPckData(unsigned char *label, unsigned char *pckData, int colorscheme){
+    uint32_t pckDataLen = *((uint32_t*)pckData);
+    bool readFinished = false;
+    int currentPosition = 8; //Start off from the first elementLength
+
+    if(pckDataLen<=8){
+        //Empty pckData
+        if(label!=NULL){
+            printf("%s: Empty pckData",label);
+        }
+        return;
+    }
+
+    if(label!=NULL){
+        printf("%s: ",label);
+    }
+
+    if(colorscheme==0){
+        for(int i =0; i<4; i++){
+            printf(ANSI_COLOR_BACKGROUND_ORANGE ANSI_COLOR_DEFAULT "%d " ANSI_COLOR_DEFAULT,*(pckData+i));
+        }
+        for(int i =0; i<4; i++){
+            printf(ANSI_COLOR_BACKGROUND_CYAN ANSI_COLOR_BLACK "%d " ANSI_COLOR_DEFAULT,*(pckData+4+i));
+        }
+    }else if(colorscheme==1){
+        for(int i =0; i<4; i++){
+            printf(ANSI_COLOR_BACKGROUND_DARKBLUE ANSI_COLOR_DEFAULT "%d " ANSI_COLOR_DEFAULT,*(pckData+i));
+        }
+        for(int i =0; i<4; i++){
+            printf(ANSI_COLOR_BACKGROUND_LIGHTYELLOW ANSI_COLOR_BLACK "%d " ANSI_COLOR_DEFAULT,*(pckData+4+i));
+        }
+    }else if(colorscheme==2){
+        for(int i =0; i<4; i++){
+            printf(ANSI_COLOR_BACKGROUND_DARKGREEN ANSI_COLOR_DEFAULT "%d " ANSI_COLOR_DEFAULT,*(pckData+i));
+        }
+        for(int i =0; i<4; i++){
+            printf(ANSI_COLOR_BACKGROUND_RED ANSI_COLOR_DEFAULT "%d " ANSI_COLOR_DEFAULT,*(pckData+4+i));
+        }
+    }
+    while(!readFinished){
+        uint32_t currentElementLen = *((uint32_t*)(pckData+currentPosition));
+        for(int i = 0; i<4; i++){
+            if(colorscheme==0){
+                printf(ANSI_COLOR_BACKGROUND_ORANGE "%d " ANSI_COLOR_DEFAULT,*(pckData+currentPosition+i));
+            }else if(colorscheme==1){
+                printf(ANSI_COLOR_BACKGROUND_DARKBLUE "%d " ANSI_COLOR_DEFAULT,*(pckData+currentPosition+i));
+
+            }else if(colorscheme==2){
+                printf(ANSI_COLOR_BACKGROUND_DARKGREEN "%d " ANSI_COLOR_DEFAULT,*(pckData+currentPosition+i));
+            }
+        }
+
+        for(int i = 0; i<currentElementLen; i++){
+            if(colorscheme==0){
+                printf(ANSI_COLOR_BACKGROUND_CYAN ANSI_COLOR_BLACK "%d " ANSI_COLOR_DEFAULT,*(pckData+currentPosition+i+4));
+            }else if(colorscheme==1){
+                printf(ANSI_COLOR_BACKGROUND_LIGHTYELLOW ANSI_COLOR_BLACK "%d " ANSI_COLOR_DEFAULT,*(pckData+currentPosition+i+4));
+
+            }else if(colorscheme==2){
+                printf(ANSI_COLOR_BACKGROUND_RED "%d " ANSI_COLOR_DEFAULT,*(pckData+currentPosition+i+4));
+
+            }
+
+        }
+
+
+
+        currentPosition = currentPosition + currentElementLen + 4;
+        if(currentPosition>=pckDataLen){
+            //PckData is over
+            readFinished = true;
+            /* printf("\n"); */
+            return;
+        }
+    }
+}
+
+

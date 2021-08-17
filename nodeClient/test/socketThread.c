@@ -35,7 +35,6 @@ void initializeSocket(){
         printf2("Initializing the socket\n");
         socketMain = socket(AF_INET, SOCK_STREAM, 0);
         initializeConnInfo(&connInfo,socketMain);
-        connInfo.localNonce = 0;
         //setsockopt(socketMain, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(int));
         newConnAddr.sin_addr.s_addr = inet_addr(targetIP);
         newConnAddr.sin_family = AF_INET;
@@ -128,7 +127,6 @@ void *socketThread(void *args){
 
         //Close connection
         close(socketMain);
-
         sleep_ms(wakeUpIntervalMs);
     }
 

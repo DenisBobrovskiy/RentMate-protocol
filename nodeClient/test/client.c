@@ -120,6 +120,10 @@ int composeNodeMessage(nodeCmdInfo *currentNodeCmdInfo, unsigned char **pckDataE
     appendToPckData(pckDataEncrypted,(unsigned char*)&(currentNodeCmdInfo->opcode),4);
     appendToPckData(pckDataEncrypted, (unsigned char*)&(currentNodeCmdInfo->argsLen),4);
     appendToPckData(pckDataEncrypted, (unsigned char*)&(currentNodeCmdInfo->args),currentNodeCmdInfo->argsLen);
+
+    printPckData(NULL,*pckDataEncrypted,2);
+    printPckData(NULL,*pckDataAdd,0);
+
     
     uint32_t pckDataLen = *(uint32_t*)pckDataEncrypted;
     // printf2("pointer: %p\n",pckDataEncrypted);

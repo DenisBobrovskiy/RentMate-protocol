@@ -8,6 +8,7 @@
 #include <arpa/inet.h>
 #include <stdarg.h>
 #include "generalSettings.h"
+#include <stdbool.h>
 
 //DEFINES
 #define pckDataIncrements 255   //If pckData(a binary data containing structure) gets filled and u need to add more to it, it will increment by this number
@@ -174,7 +175,12 @@ int printfFormatted(char *prefix, char *formattedInput, ...);
 static int printf2(char *formattedInput, ...);
 
 connInfo_t *findConnInfo(arrayList *connInfos, int socket);
+int removeConnInfo(arrayList *connInfos, int socket);
 
 int readDataEntry(arrayList *dataEntries, unsigned char **dataPtr, int index);
+
+
+void printPckData(unsigned char *label, unsigned char *pckData, int colorscheme);
+void printMessage(char labelMsg[255], unsigned char *data, int datatype, bool isEncrypted);
 
 #endif

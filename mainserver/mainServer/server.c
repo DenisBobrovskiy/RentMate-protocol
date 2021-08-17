@@ -74,7 +74,7 @@ int processMsg(connInfo_t *connInfo, unsigned char *msg)
     //MESSAGE STRUCTURE
     uint32_t msgLen = *(uint32_t*)msg;
     msgLen = ntohl(msgLen);
-    print2("Message structure(encrypted):",msg,msgLen,0);
+    printMessage("Message structure(encrypted):",msg,0,true);
     // printf2("Message structure:\n");
     // for(int i = 0; i <MAXMSGLEN; i++){
     //     printf("%d ", *(msg+i));
@@ -126,11 +126,6 @@ int processMsg(connInfo_t *connInfo, unsigned char *msg)
 
         printf2("Message's DEVID: %.16s, KEY: %.16s\n",devInfo->devId,devInfo->key);
 
-        uint32_t test = 32;
-        print2("Local endianess",(unsigned char*)&test,4,0);
-        test = htonl(test);
-        print2("Network endianess",(unsigned char*)&test,4,0);
-
         //Decrypt the message
         initGCM(&gcmCtx,devInfo->key,KEYLEN*8);
         if(decryptPckData(&gcmCtx,msg,decryptedMsgBuffer)!=0){
@@ -181,6 +176,9 @@ int processMsg(connInfo_t *connInfo, unsigned char *msg)
             printf2("Nonce local: %d; Nonce remote: %d; Generated sessionID: %d\n", connInfo->localNonce, connInfo->remoteNonce, connInfo->sessionId);
 
             //NOW SEND OFF ANY MESSAGES IN THE QUEUE
+        }else if(connInfo->sessionId!=0){
+            //Process actual messages
+            printf2("PROCESSING ACTUAL MESSAGE\n");
         }
     }
 

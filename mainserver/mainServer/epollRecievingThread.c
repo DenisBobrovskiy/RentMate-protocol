@@ -257,7 +257,12 @@ void *epollRecievingThread(void *args){
 
                     int currentSocket = events[i].data.fd;
                     connInfo_t *connInfo = findConnInfo(&connectionsInfo,currentSocket);
-                    recvAll(&recvHolders,connInfo, events[i].data.fd, processMsgBuffer, processMsg);
+                    int returnValue = recvAll(&recvHolders,connInfo, events[i].data.fd, processMsgBuffer, processMsg);
+                    if(returnValue==1){
+                        //Connection was closed so delete connInfo
+                        printf2("Connection closed. Removing connInfo\n");
+                        removeConnInfo(&connectionsInfo,events[i].data.fd);
+                    }
                 }else{
                     int socket = events[i].data.fd;
                     printf2("Not accepting connections or recieving message. Came from socket %d\n",socket);
