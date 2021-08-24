@@ -47,6 +47,8 @@ the sessionId's dont get messed up.
 
 
 #define PCKDATAMESSAGES 1
+#define RECVALLMESSAGES 0
+
 #define ANSI_BACKGROUND_BLUE "\e[44m"
 #define ANSI_BACKGROUND_GREEN "\e[42m"
 #define ANSI_BACKGROUND_DEFAULT "\e[49m"
@@ -446,7 +448,7 @@ int encryptPckData(mbedtls_gcm_context *ctx,
         memcpy(extraDataPckPtr,extraDataPck,userExtraDataLen);
     }
     // printf2("MSG B4 ENCRYPTION\n");
-    print2("Msg before encryption:",outputBuf,msgLen,0);
+    printMessage("Msg before encryption:",outputBuf,0,false,true);
     //Encrypt (and output tag into msg during encryption)
     if(addLen==0){
         addPtr = NULL;
@@ -458,7 +460,7 @@ int encryptPckData(mbedtls_gcm_context *ctx,
     //Free
     free(pckData);
 
-    print2("Msg after encryption:",outputBuf,msgLen,0);
+    printMessage("Msg after encryption:",outputBuf,0,true,true);
     return msgLen;
 }
 
@@ -553,7 +555,7 @@ int decryptPckData(mbedtls_gcm_context *ctx, unsigned char *encryptedMsg, unsign
         addPtr = NULL;
     }
 
-    print2("Message before decryption:",encryptedMsg,msgLen,0);
+    /* printMessage("Message before decryption:",encryptedMsg,0,true,true); */
 
     if(decryptGcm(ctx,encryptDataPtr,eDataLen,ivPtr,IVLEN,addPtr,addLen,tagPtr,TAGLEN,outputBuf)!=0){
         printf2("Failed decrypting data\n");
@@ -568,11 +570,26 @@ int decryptPckData(mbedtls_gcm_context *ctx, unsigned char *encryptedMsg, unsign
     /* print2("Printing decrypted data:",pckDataPtr-protocolSpecificEncryptedDataLen,40,0); */
     if(eDataLen>protocolSpecificEncryptedDataLen){
         pckDataToHostOrder(pckDataPtr);
-        if((addLen-protocolSpecificAddLen)>0){
-            pckDataToHostOrder(addPckDataPtr);
-        }
-        print2("Message after decryption(only the encrypedPckData part!):",outputBuf,msgLen,0);
+        printf("\n");
     }
+
+    if((addLen-protocolSpecificAddLen)>0){
+        pckDataToHostOrder(addPckDataPtr);
+    }
+    if((extraDataLen-protocolSpecificExtraDataLen)>0){
+        pckDataToHostOrder(extraDataPckPtr);
+    }
+
+    //Here i will deserialize everything (except decrypted data, that was already deserialized) and put the outputBuf back into the original message.
+    uint32_t msgLenBeforeEncryptedData = 4+4+4+IVLEN+TAGLEN+extraDataLen+addLen;
+    memcpy(encryptedMsg+msgLenBeforeEncryptedData,outputBuf,msgLen-msgLenBeforeEncryptedData);
+    *(uint32_t*)encryptedMsg = ntohl(*(uint32_t*)encryptedMsg); //encrypted len
+    *(uint32_t*)(encryptedMsg+4) = ntohl(*(uint32_t*)(encryptedMsg+4)); //add len
+    *(uint32_t*)(encryptedMsg+8) = ntohl(*(uint32_t*)(encryptedMsg+8)); //extra len
+    *(uint32_t*)(addPtr) = ntohl(*(uint32_t*)(addPtr)); //Version number
+    /* pckDataToHostOrder(addPckDataPtr); */
+    /* pckDataToHostOrder(extraDataPckPtr); */
+
     return 0;
 
 }
@@ -601,25 +618,25 @@ void print2(char labelMsg[255], unsigned char *data, int length, int datatype){
     printf2("");
     for(int i =0; i<length;i+=increments){
         if(datatype==0){
-            if(i==0){
-                printf(ANSI_COLOR_DEFAULT);
-                printf(ANSI_BACKGROUND_BLUE);
-            }else if(i==4){
-                printf(ANSI_COLOR_BLACK);
-                printf(ANSI_BACKGROUND_GREEN);
-            }else if(i==8){
-                printf(ANSI_COLOR_DEFAULT);
-                printf(ANSI_BACKGROUND_BLUE);
-            }else if(i==12){
-                printf(ANSI_COLOR_BLACK);
-                printf(ANSI_BACKGROUND_GREEN);
-            }else if(i==24){
-                printf(ANSI_COLOR_DEFAULT);
-                printf(ANSI_BACKGROUND_BLUE);
-            }else if(i==40){
-                printf(ANSI_COLOR_BLACK);
-                printf(ANSI_BACKGROUND_GREEN);
-            }
+            /* if(i==0){ */
+            /*     printf(ANSI_COLOR_DEFAULT); */
+            /*     printf(ANSI_BACKGROUND_BLUE); */
+            /* }else if(i==4){ */
+            /*     printf(ANSI_COLOR_BLACK); */
+            /*     printf(ANSI_BACKGROUND_GREEN); */
+            /* }else if(i==8){ */
+            /*     printf(ANSI_COLOR_DEFAULT); */
+            /*     printf(ANSI_BACKGROUND_BLUE); */
+            /* }else if(i==12){ */
+            /*     printf(ANSI_COLOR_BLACK); */
+            /*     printf(ANSI_BACKGROUND_GREEN); */
+            /* }else if(i==24){ */
+            /*     printf(ANSI_COLOR_DEFAULT); */
+            /*     printf(ANSI_BACKGROUND_BLUE); */
+            /* }else if(i==40){ */
+            /*     printf(ANSI_COLOR_BLACK); */
+            /*     printf(ANSI_BACKGROUND_GREEN); */
+            /* } */
              printf("%d ",*(data+i));
         }else if(datatype==1){
              printf("%c ",*(data+i));
@@ -634,7 +651,7 @@ void print2(char labelMsg[255], unsigned char *data, int length, int datatype){
 }
 
 
-void printMessage(char labelMsg[255], unsigned char *data, int datatype, bool isEncrypted){
+void printMessage(char labelMsg[255], unsigned char *data, int datatype, bool isEncrypted, bool isSerialized){
 #if PCKDATAMESSAGES
     int increments = 1;
     //data = unsigned char (numbers)
@@ -669,7 +686,7 @@ void printMessage(char labelMsg[255], unsigned char *data, int datatype, bool is
     extraDataLen = *((uint32_t*)(data+8));
 
     //Deserialize lengths if needed
-    if(isEncrypted){
+    if(isSerialized){
         totalLen = ntohl(totalLen);
         addDataLen = ntohl(addDataLen);
         extraDataLen = ntohl(extraDataLen);
@@ -682,16 +699,6 @@ void printMessage(char labelMsg[255], unsigned char *data, int datatype, bool is
     addDataPckDataPtr = addDataPtr+protocolSpecificAddLen;
     encryptedDataPckDataPtr = encryptedDataPtr+protocolSpecificEncryptedDataLen;
 
-    //Deserialize pckData if needed
-    if(isEncrypted){
-        if((addDataLen-protocolSpecificAddLen)!=0){
-            pckDataToHostOrder(addDataPckDataPtr);
-        }
-        if((extraDataLen-protocolSpecificExtraDataLen)!=0){
-            pckDataToHostOrder(extraDataPckDataPtr);
-        }
-    }
-
 
     //PRINTING EXTRA DATA
     printf(ANSI_BACKGROUND_DEFAULT);
@@ -701,7 +708,7 @@ void printMessage(char labelMsg[255], unsigned char *data, int datatype, bool is
         printf("%d ", *(extraDataPtr+i));
     }
     if((extraDataLen-protocolSpecificExtraDataLen)!=0){
-        printPckData(NULL,extraDataPckDataPtr,2);
+        printPckData(NULL,extraDataPckDataPtr,isSerialized,2);
     }
     printf(ANSI_BACKGROUND_DEFAULT);
     printf(" |||extraDataOver||| ");
@@ -713,7 +720,7 @@ void printMessage(char labelMsg[255], unsigned char *data, int datatype, bool is
         printf("%d ", *(addDataPtr+i));
     }
     if((addDataLen-protocolSpecificAddLen)!=0){
-        printPckData(NULL,addDataPckDataPtr,1);
+        printPckData(NULL,addDataPckDataPtr,isSerialized,1);
     }
     printf(ANSI_BACKGROUND_DEFAULT);
     printf(" |||addDataOver||| ");
@@ -732,7 +739,7 @@ void printMessage(char labelMsg[255], unsigned char *data, int datatype, bool is
             printf("%d ", *(encryptedDataPtr+i));
         }
         if((encryptedDataLen-protocolSpecificEncryptedDataLen)!=0){
-            printPckData(NULL,encryptedDataPckDataPtr,0);
+            printPckData(NULL,encryptedDataPckDataPtr,isSerialized,0);
         }
 
     }
@@ -757,20 +764,30 @@ unsigned char* getPointerToUserAddData(unsigned char *msgPtr){
 //Reads addData from message and assigns every addPckDataElement pointer to arrayList addDataPointers.
 //IMPORTANT: USE AFTER MSG WAS DECRYPTED TO VERIFY THAT IT WASNT MODIFIED BY 3RD PARTY (If it were, the tag would be incorrect and decryption will fail!)
 //NOTE: Use before decryption only if completely necessary or for unsensitive info (such as for devId, because you need to know it for decryption key)
-int readAddData(unsigned char *msgPtr, arrayList *addDataPointersAndLength){
+int readAddData(unsigned char *msgPtr, arrayList *addDataPointersAndLength, bool isSerialized){
     //Read only user defined add, ignore stuff such as versionNum and anything else protocol defined
      // printf("Read add data func called\n");
      // print2("READ ADD DATA MESSAGE PASSED:",msgPtr,255,0);
     initList(addDataPointersAndLength,4+sizeof(unsigned char*));
     //Acquire user add data length
-    uint32_t userAddLen = ntohl(*(uint32_t*)(msgPtr+4))-protocolSpecificAddLen;
+    uint32_t userAddLen;
+    if(isSerialized){
+        userAddLen = ntohl(*(uint32_t*)(msgPtr+4))-protocolSpecificAddLen;
+    }else{
+        userAddLen = (*(uint32_t*)(msgPtr+4))-protocolSpecificAddLen;
+
+    }
     // printf2("User add len: %d\n",userAddLen);
     unsigned char *msgAddPtr = msgPtr + 4 + 4 + 4 + IVLEN + TAGLEN + protocolSpecificAddLen;
     int distance = 4 + 4 + 4 + IVLEN + TAGLEN + protocolSpecificAddLen;
      // print2("Add data original:",msgAddPtr,36,0);
      // printf2("distance: %d\n",distance);
     uint32_t pckDataLen = *(uint32_t*)msgAddPtr;
-    pckDataLen = ntohl(pckDataLen);
+    if(isSerialized){
+        pckDataLen = ntohl(pckDataLen);
+    }else{
+        pckDataLen = pckDataLen;
+    }
      // printf2("pckData len: %d\n",pckDataLen);
     uint32_t currentLen = 8;  //4(pckDataLen) + 4(pckDataIncrements)
     uint32_t currentElemLen = 0;
@@ -778,7 +795,11 @@ int readAddData(unsigned char *msgPtr, arrayList *addDataPointersAndLength){
     while(currentLen<pckDataLen && currentLen<userAddLen){
         // printf2("current len: %d\n",currentLen);
         currentElemLen = *((uint32_t*)(msgAddPtr+currentLen));
-        currentElemLen = ntohl(currentElemLen);
+        if(isSerialized){
+            currentElemLen = ntohl(currentElemLen);
+        }else{
+            currentElemLen = currentElemLen;
+        }
         unsigned char elementData[4+sizeof(unsigned char*)];
         *(uint32_t*)elementData = currentElemLen;
          // printf2("element len: %d\n",currentElemLen);
@@ -855,23 +876,77 @@ uint32_t getPckGSettingsFromDecryptedData(unsigned char *decryptedDataPtr){
 
 //Gets a pckData element from pointerToData at specific index, spitting out its length as return value and pointer to element itself is assigned to *ptrToElement
 //Returns elements length (or -1 on error)
-uint32_t getElementFromPckData(arrayList *pointersToData, unsigned char **ptrToElement, int index){
-    unsigned char *tempElementPtr = getFromList(pointersToData,index);
-    unsigned char *dataPtr;
-    if(tempElementPtr==NULL){
-        printf2("Wrong index in pckData!\n");
-        *ptrToElement = NULL;
-        return -1;
-    }
-    memcpy(&dataPtr,(tempElementPtr+4),sizeof(unsigned char*));
+/* uint32_t getElementFromPckData(arrayList *pointersToData, unsigned char **ptrToElement, int index){ */
+/*     unsigned char *tempElementPtr = getFromList(pointersToData,index); */
+/*     unsigned char *dataPtr; */
+/*     if(tempElementPtr==NULL){ */
+/*         printf2("Wrong index in pckData!\n"); */
+/*         *ptrToElement = NULL; */
+/*         return -1; */
+/*     } */
+/*     memcpy(&dataPtr,(tempElementPtr+4),sizeof(unsigned char*)); */
     
-    // print2("Got element from list:",tempElementPtr,12,0);
-    //print2("Pointer:",&dataPtr,10,0);
-    //print2("Pointer dereferenced:",dataPtr,8,0);
-    //Assign pointer
-    *ptrToElement = dataPtr;
-    //Return element length
-    return *(uint32_t*)(tempElementPtr);
+/*     // print2("Got element from list:",tempElementPtr,12,0); */
+/*     //print2("Pointer:",&dataPtr,10,0); */
+/*     //print2("Pointer dereferenced:",dataPtr,8,0); */
+/*     //Assign pointer */
+/*     *ptrToElement = dataPtr; */
+/*     //Return element length */
+/*     return *(uint32_t*)(tempElementPtr); */
+/* } */
+
+//Returns elements length or -1 on error. Make sure data is deserialized before using. Index starts from 0-infinity for every element in pckData in sequential order
+uint32_t getElementFromPckData(unsigned char *pckData, unsigned char *output, int index){
+    uint32_t totalLen = *(uint32_t*)pckData;
+    uint32_t currentPosition = 8; //Ignore the total length and increment size fields when reading the message
+    bool isDone = false;
+    uint32_t currentIndex = 0;
+
+    while(!isDone){
+        uint32_t currentElemLen = *(uint32_t*)(pckData+currentPosition);
+        
+        if(index==currentIndex){
+            //Get this element
+            memcpy(output,pckData+currentPosition+4,currentElemLen);
+            return currentElemLen;
+        }
+        currentPosition = currentPosition + 4 + currentElemLen;
+        currentIndex++;
+        if(currentPosition>=totalLen){
+            //PckData is over
+            printf2("ERROR: Index non-existent(too large) in getElementFromPckData()\n");
+            isDone = true;
+            return -1;
+        }
+    }
+    printf2("ERROR: Index non-existent in getElementFromPckData()\n");
+    return -1;
+}
+
+uint32_t getElementLengthFromPckData(unsigned char *pckData, int index){
+    uint32_t totalLen = *(uint32_t*)pckData;
+    uint32_t currentPosition = 8; //Ignore the total length and increment size fields when reading the message
+    bool isDone = false;
+    uint32_t currentIndex = 0;
+
+    while(!isDone){
+        uint32_t currentElemLen = *(uint32_t*)(pckData+currentPosition);
+        
+        if(index==currentIndex){
+            //Get this element
+            return currentElemLen;
+        }
+        currentPosition = currentPosition + 4 + currentElemLen;
+        currentIndex++;
+        if(currentPosition>=totalLen){
+            //PckData is over
+            printf2("ERROR: Index non-existent(too large) in getElementFromPckData()\n");
+            isDone = true;
+            return -1;
+        }
+    }
+    printf2("ERROR: Index non-existent in getElementFromPckData()\n");
+    return -1;
 }
 
 //Recieves messages and processes them with a corresponding processing function. process buf(3rd argument must be of at least max msg length size)
@@ -882,12 +957,11 @@ uint32_t getElementFromPckData(arrayList *pointersToData, unsigned char **ptrToE
 //processingCallback - a function pointer, this function gets called after a complete message is recieved and is the final message (in its raw form, encrypted and stuff)
 //Returns: -1 = error; 1 = connection closed
 int recvAll(arrayList *recvHoldersList, connInfo_t *connInfo, int socket, unsigned char *processBuf, processingCallback processingMsgCallback){
-    printf2("recvAll started on socket %d\n",socket);
+    printfRecvAll("recvAll started on socket %d\n",socket);
 
     //Get connInfo(created during connect1() or accept1()) for this socket
     if(connInfo==NULL){
-
-        printf2("No connInfo found, did u use connect1()?\n");
+        printfRecvAll("No connInfo found, did u use connect1()?\n");
         return -1;
     }
     //recvHolder to use for this message and socket
@@ -901,10 +975,10 @@ int recvAll(arrayList *recvHoldersList, connInfo_t *connInfo, int socket, unsign
         //Find if one belongs to this socket
         for(int i =0; i<recvHoldersList->length; i++){
             recvHolder *recvHolderTemp = getFromList(recvHoldersList,i);
-            printf2("Found recv queue in use for socket: %i\n",recvHolderTemp->socket);
+            printfRecvAll("Found recv queue in use for socket: %i\n",recvHolderTemp->socket);
             if(recvHolderTemp->socket==socket){
                 //Found queue belonging to this socket!
-                printf2("Found queue belonging to this socket at index %i!\n",i);
+                printfRecvAll("Found queue belonging to this socket at index %i!\n",i);
                 recvHolderToUse = recvHolderTemp;
                 recvHolderToUseIndex = i;
             }
@@ -913,13 +987,13 @@ int recvAll(arrayList *recvHoldersList, connInfo_t *connInfo, int socket, unsign
     unsigned char freeHolderFound = 0;
     //If this socket has no holder
     if(recvHolderToUse==NULL){
-        printf2("No associated holder found for this socket\n");
+        printfRecvAll("No associated holder found for this socket\n");
         //Check if any holders are free to use (socket field will be -1).
         for(int i = 0; i <recvHoldersList->length; i++){
             recvHolder *tempHolder = getFromList(recvHoldersList,i);
             if(tempHolder->socket==-1){
                 //Found available free holder!
-                printf2("Found available free holder!\n");
+                printfRecvAll("Found available free holder!\n");
                 recvHolderToUse = tempHolder;
                 recvHolderToUseIndex = i;
                 freeHolderFound = 1;
@@ -930,20 +1004,20 @@ int recvAll(arrayList *recvHoldersList, connInfo_t *connInfo, int socket, unsign
         //If no free holder was found, create one
         if(freeHolderFound==0){
             //If no holders free. Create a new one
-            printf2("No free holders found. Creating new one\n");
+            printfRecvAll("No free holders found. Creating new one\n");
             //Init new holder structure
             recvHolder newHolder;
             initRecvHolder(&newHolder,MAXDEVMSGLEN*3,socket);
             //Add new holder to the recvHolders list
             if(addToList(recvHoldersList,&newHolder)!=0){
-                printf2("Failed to add new queue to list\n");
+                printfRecvAll("Failed to add new queue to list\n");
                 exit(1);
             }
             //Index is last in list because adding always adds to the end of list!
             recvHolderToUseIndex = recvHoldersList->length-1;
             if((recvHolderToUse = getFromList(recvHoldersList,recvHolderToUseIndex))==NULL){
                 //Index non existent
-                printf2("Failed to get recvHolder from list at index %i. Index non-existent",recvHolderToUseIndex);
+                printfRecvAll("Failed to get recvHolder from list at index %i. Index non-existent",recvHolderToUseIndex);
                 exit(1);
             }
         }
@@ -953,32 +1027,32 @@ int recvAll(arrayList *recvHoldersList, connInfo_t *connInfo, int socket, unsign
     //------HERE WE SHOULD HAVE A QUEUE. NOW JUST ANALYZE/MODIFY IT - (recvHolder *recvHolderToUse)
     //Reset time since used in this queue so it doesnt get removed due to timeout
     recvHolderToUse->timeSinceUsed = 0;
-    //printf2("Queue obtained\n");
+    //printfRecvAll("Queue obtained\n");
 
     int rs;
     do{
-        printf2("Looping recv loop\n");
+        printfRecvAll("Looping recv loop\n");
         rs = recv(socket,recvHolderToUse->recvQueue+recvHolderToUse->sizeUsed,(recvHolderToUse->size-recvHolderToUse->sizeUsed),0);
-        printf2("Recieved: %i bytes\n",rs);
+        printfRecvAll("Recieved: %i bytes\n",rs);
         if(rs==-1){
             //Buffer over or error
-            //printf2("Buffer over or error occured\n");
+            //printfRecvAll("Buffer over or error occured\n");
             perror("recv = -1");
             return -1;
         }else if(rs==0){
             //Connection closed
-            //printf2("Connection closed\n");
+            //printfRecvAll("Connection closed\n");
             close(socket);
 
             //Set corresponding recvHolder's socket to -1 meaning other sockets can take it, it also clears recvHolder's fields
-            printf2("Connection closed on socket: %d\n",socket);
+            printfRecvAll("Connection closed on socket: %d\n",socket);
             resetRecvHolder(recvHolderToUse,-1);
             
 
             return 1;
         }
         //Got genuine message
-        //printf2("Recieved genuine message!\n");
+        //printfRecvAll("Recieved genuine message!\n");
 
         //------HANDLING MSG LENGTH
         //Only check length if it hasnt been previously assigned or was partially recieved previously
@@ -1003,13 +1077,13 @@ int recvAll(arrayList *recvHoldersList, connInfo_t *connInfo, int socket, unsign
 
 //Part of recvAll() function. Handles message length
 int handleMsgLen(recvHolder *recvHolderToUse, int rs){
-    printf2("FINDING MSG LENGTH\n");
+    printfRecvAll("FINDING MSG LENGTH\n");
     //Assign pointer to start of msg if it is the very first bit of data sent from it
     if(recvHolderToUse->firstMsgSize==0 && recvHolderToUse->firstMsgSize!=5){
-        printf2("Assigning starting pointer to msg\n");
+        printfRecvAll("Assigning starting pointer to msg\n");
         recvHolderToUse->firstMsgPtr = (recvHolderToUse->recvQueue+recvHolderToUse->sizeUsed);
     }
-    // printf2("Msg length:\n");
+    // printfRecvAll("Msg length:\n");
     // for(int i = 0; i<4; i ++){
     //     printf("%d ",*(recvHolderToUse->firstMsgPtr+i));
     // }
@@ -1021,9 +1095,9 @@ int handleMsgLen(recvHolder *recvHolderToUse, int rs){
 
     //Once got 4 bytes(full length) assign them
     if(recvHolderToUse->firstMsgSize>=4){
-        printf2("Recieved full msg length!\n");
+        printfRecvAll("Recieved full msg length!\n");
         recvHolderToUse->firstMsgSize = ntohl(*((uint32_t*)(recvHolderToUse->firstMsgPtr)));
-        printf2("Msg size: %i\n",recvHolderToUse->firstMsgSize);
+        printfRecvAll("Msg size: %i\n",recvHolderToUse->firstMsgSize);
     }
 }
 
@@ -1033,7 +1107,7 @@ int handleMsgLen(recvHolder *recvHolderToUse, int rs){
 int handleMsgData(connInfo_t *connInfo, recvHolder *recvHolderToUse, int rs, unsigned char *processMsgBuffer, processingCallback processingMsgCallback){
     int recvMessagesCount = 0;
     unsigned char hasBufferCirculated = 0;
-    printf2("First msg total size: %i/%i\n",recvHolderToUse->firstMsgSizeUsed,recvHolderToUse->firstMsgSize);
+    printfRecvAll("First msg total size: %i/%i\n",recvHolderToUse->firstMsgSizeUsed,recvHolderToUse->firstMsgSize);
 
     //If message completed, copy to processBuf and call processing callback
     if((recvHolderToUse->firstMsgSizeUsed>=recvHolderToUse->firstMsgSize) && recvHolderToUse->firstMsgSize>4){
@@ -1044,12 +1118,12 @@ int handleMsgData(connInfo_t *connInfo, recvHolder *recvHolderToUse, int rs, uns
 
         if(tillBufferEnd<=0){
             //If message is overlapping buffer
-            //printf2("Copying overlapping message to process buffer\n");
+            //printfRecvAll("Copying overlapping message to process buffer\n");
             memcpy(processMsgBuffer,recvHolderToUse->firstMsgPtr,recvHolderToUse->firstMsgSize+tillBufferEnd);
             memcpy(processMsgBuffer+recvHolderToUse->firstMsgSize+tillBufferEnd,recvHolderToUse->recvQueue,-(tillBufferEnd));
         }else{
             //If message isnt overlapping buffer
-            //printf2("Copying non buffer overlapping message\n");
+            //printfRecvAll("Copying non buffer overlapping message\n");
             memcpy(processMsgBuffer,recvHolderToUse->firstMsgPtr,recvHolderToUse->firstMsgSize);
         }
 
@@ -1065,11 +1139,11 @@ int handleMsgData(connInfo_t *connInfo, recvHolder *recvHolderToUse, int rs, uns
         //If some data recieved belonged to the second message, handle it here
         if(recvHolderToUse->firstMsgSizeUsed>(recvHolderToUse->firstMsgSize)){
             //If recieved some (or all) of the second message
-            printf2("Recieved some of the 2nd message\n");
+            printfRecvAll("Recieved some of the 2nd message\n");
             recvHolderToUse->firstMsgPtr = (recvHolderToUse->recvQueue+recvHolderToUse->sizeUsed+recvHolderToUse->firstMsgSize);
             recvHolderToUse->firstMsgSizeUsed = recvHolderToUse->firstMsgSizeUsed-recvHolderToUse->firstMsgSize;
             recvHolderToUse->firstMsgSize = 5;
-            printf2("%i bytes recieved of second msg\n",recvHolderToUse->firstMsgSizeUsed);
+            printfRecvAll("%i bytes recieved of second msg\n",recvHolderToUse->firstMsgSizeUsed);
 
             //CIRCULATE BUFFER TO AVOID ERRORS IN HANDLING SECOND MSG AND SET hasBufferCirculated to true
             //to avoid further circulations
@@ -1077,7 +1151,7 @@ int handleMsgData(connInfo_t *connInfo, recvHolder *recvHolderToUse, int rs, uns
             hasBufferCirculated = 1;
 
             handleMsgLen(recvHolderToUse,recvHolderToUse->firstMsgSizeUsed);
-            printf2("Second msg size: %i\n",recvHolderToUse->firstMsgSize);
+            printfRecvAll("Second msg size: %i\n",recvHolderToUse->firstMsgSize);
             int messagesObtained = handleMsgData(connInfo, recvHolderToUse, rs, processMsgBuffer,processingMsgCallback);
             recvMessagesCount+=messagesObtained;
         }else{
@@ -1089,7 +1163,7 @@ int handleMsgData(connInfo_t *connInfo, recvHolder *recvHolderToUse, int rs, uns
     }else{
         //TODO
         //Finishing older message
-        //printf2("Finishing older message\n");
+        //printfRecvAll("Finishing older message\n");
     }
 
     //--CIRCULATE BUFFER (if it hasnt already been circulated due to recieving second msg)
@@ -1106,9 +1180,9 @@ int handleMsgData(connInfo_t *connInfo, recvHolder *recvHolderToUse, int rs, uns
 void circulateBuffer(recvHolder *recvHolderToUse, int rs){
     //------CREATE CIRCULAR BUFFER BEHAVIOUR
     recvHolderToUse->sizeUsed += rs;
-    //printf2("Size used: %i. Total size: %i\n",recvHolderToUse->sizeUsed,recvHolderToUse->size);
+    //printfRecvAll("Size used: %i. Total size: %i\n",recvHolderToUse->sizeUsed,recvHolderToUse->size);
     if(recvHolderToUse->size==recvHolderToUse->sizeUsed){
-        //printf2("Overlapping buffer! Sizes are equal\n");
+        //printfRecvAll("Overlapping buffer! Sizes are equal\n");
         recvHolderToUse->sizeUsed = 0;
     }
 }
@@ -1117,7 +1191,7 @@ void circulateBuffer(recvHolder *recvHolderToUse, int rs){
 
 //inits a new recvHolder. Should only be used inside recvAll()
 int initRecvHolder(recvHolder *holder, int maxSize, int socket){
-    printf2("Initializing recvHolder\n");
+    printfRecvAll("Initializing recvHolder\n");
     holder->socket = socket;
     holder->firstMsgPtr = NULL;
     holder->size = maxSize;
@@ -1134,7 +1208,7 @@ int initRecvHolder(recvHolder *holder, int maxSize, int socket){
 
 //Sets all values in recvHolder to defaults. Should only be used in recvAll(). DOESNT DEALLOC THE recvHolder, only defaults its values
 int resetRecvHolder(recvHolder *holder,int socket){
-    printf2("Reseting recvHolder\n");
+    printfRecvAll("Reseting recvHolder\n");
     holder->socket = socket;
     holder->firstMsgPtr = NULL;
     holder->sizeUsed = 0;
@@ -1147,7 +1221,7 @@ int removeRecvHolder(arrayList *recvHolders, int index){
     //Free allocated *recvQueue pointer inside recvHolder
     recvHolder *tempRecvHolder;
     if((tempRecvHolder = getFromList(recvHolders,index))==NULL){
-        printf2("Inexistent index provided to removeRecvQueue function!!\n");
+        printfRecvAll("Inexistent index provided to removeRecvQueue function!!\n");
         exit(1);
     }
     free(tempRecvHolder->recvQueue);
@@ -1436,7 +1510,23 @@ static int printf2(char *formattedInput, ...){
     va_end(args);
     return result;
 #endif
+    return 0;
 }
+
+//Use this in recvAll and all its helper functions so we can easily mute the debug messages from it.
+static int printfRecvAll(char *formattedInput, ...){
+#if PCKDATAMESSAGES && RECVALLMESSAGES
+    int result;
+    va_list args;
+    va_start(args,formattedInput);
+    printf(ANSI_COLOR_LIGHTGRAY1 "pckDataLib(recvAll): " ANSI_COLOR_DEFAULT);
+    result = vprintf(formattedInput,args);
+    va_end(args);
+    return result;
+#endif
+    return 0;
+}
+
 
 connInfo_t *findConnInfo(arrayList *connInfos, int socket){
     for(int i = 0; i <connInfos->length; i++){
@@ -1462,7 +1552,10 @@ int removeConnInfo(arrayList *connInfos, int socket){
 
 
 //Prints pckData color coded (different colors for different segments of the structure). You can choose color using the colorscheme argument: 0 - orange/cyan, 1 - darkBlue/lightYellow
-void printPckData(unsigned char *label, unsigned char *pckData, int colorscheme){
+void printPckData(char *label, unsigned char *pckData, int isSerialized, int colorscheme){
+    if(isSerialized){
+        pckDataToHostOrder(pckData);
+    }
     uint32_t pckDataLen = *((uint32_t*)pckData);
     bool readFinished = false;
     int currentPosition = 8; //Start off from the first elementLength
@@ -1470,13 +1563,13 @@ void printPckData(unsigned char *label, unsigned char *pckData, int colorscheme)
     if(pckDataLen<=8){
         //Empty pckData
         if(label!=NULL){
-            printf("%s: Empty pckData",label);
+            printf2("%s: Empty pckData",label);
         }
         return;
     }
 
     if(label!=NULL){
-        printf("%s: ",label);
+        printf2("%s: \n",label);
     }
 
     if(colorscheme==0){
@@ -1534,6 +1627,12 @@ void printPckData(unsigned char *label, unsigned char *pckData, int colorscheme)
             //PckData is over
             readFinished = true;
             /* printf("\n"); */
+            printf(ANSI_COLOR_DEFAULT);
+            printf(ANSI_BACKGROUND_DEFAULT);
+
+            if(isSerialized){
+                pckDataToNetworkOrder(pckData);
+            }
             return;
         }
     }

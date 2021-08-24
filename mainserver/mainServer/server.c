@@ -46,6 +46,21 @@ mbedtls_gcm_context gcmCtx;
 
 
 int main(void){
+    //Helper. Remove later.
+    uint32_t testNumber = 6;
+    printf2("Endianess of number 6(uint32_t). Local: ");
+    for(int i = 0; i<4; i++){
+        printf("%d ",*((unsigned char*)&testNumber+i));
+    }
+    printf(" Network: ");
+    testNumber = htonl(testNumber);
+    for(int i = 0; i<4; i++){
+        printf("%d ",*((unsigned char*)&testNumber+i));
+    }
+    printf("\n");
+
+
+
     //INITIALIZATION
     printf2("Initializing main server\n");
     //modifySetting("passExchangeMethod", 18, 0);
@@ -74,12 +89,27 @@ int processMsg(connInfo_t *connInfo, unsigned char *msg)
     //MESSAGE STRUCTURE
     uint32_t msgLen = *(uint32_t*)msg;
     msgLen = ntohl(msgLen);
-    printMessage("Message structure(encrypted):",msg,0,true);
-    // printf2("Message structure:\n");
-    // for(int i = 0; i <MAXMSGLEN; i++){
-    //     printf("%d ", *(msg+i));
-    // }
-    // printf("\n");
+    uint32_t addMsgLen = *(uint32_t*)(msg+4);
+    addMsgLen = ntohl(addMsgLen);
+    uint32_t extraMsgLen = *(uint32_t*)(msg+8);
+    extraMsgLen = ntohl(extraMsgLen);
+
+
+    //Pointers to sections of the message
+    unsigned char *msgLenPtr = msg;
+    unsigned char *addLenPtr = msgLenPtr+4;
+    unsigned char *extraLenPtr = addLenPtr+4;
+    unsigned char *ivPtr = extraLenPtr+4;
+    unsigned char *tagPtr = ivPtr+IVLEN;
+    unsigned char *extraDataPtr = tagPtr+TAGLEN;
+    unsigned char *extraDataPckPtr = extraDataPtr+protocolSpecificExtraDataLen;
+    unsigned char *addDataPtr = extraDataPtr+extraMsgLen;
+    unsigned char *addPckDataPtr = addDataPtr+protocolSpecificAddLen;
+    unsigned char *encryptedDataPtr = addDataPtr+addMsgLen;
+    unsigned char *encryptedPckDataPtr = encryptedDataPtr+protocolSpecificEncryptedDataLen;
+
+    /* printf2("Message lengths - TotalLen: %d; AddLen: %d; ExtraLen: %d\n",msgLen,addMsgLen,extraMsgLen); */
+    printMessage("Message structure(encrypted):",msg,0,true,true);
 
 
     //Extract the devID and hence its corresponding decryption key
@@ -93,11 +123,7 @@ int processMsg(connInfo_t *connInfo, unsigned char *msg)
         //Get devId from the message's ADD data (not verified yet, verify that it hasnt been spoofed after decryption!!)
         arrayList tempAddData;
         arrayList decryptedMsg;
-        readAddData(msg,&tempAddData);
-        // unsigned char *devIdDataEntry = getFromList(&tempAddData,0); //Returns a length of the entry (4 bytes) followed by a pointer to that data (pointer is inside the message buffer we passed to the readAddData() function)
-        // uint32_t devIdDataLength = *(uint32_t*)devIdDataEntry;
-        // unsigned char **devIdDataEntryPtr = devIdDataEntry+4;
-        // devIdFromMessage = *devIdDataEntryPtr;  //Here we have obtained a pointer to the DEVID in the message buffer
+        readAddData(msg,&tempAddData,true);
         if(readDataEntry(&tempAddData,&devIdFromMessage,0)==-1){
             printf2("DEVID not present in ADD data, so ignore this message, since without DEVID we cant decrypt\n");
             return -1;
@@ -134,6 +160,10 @@ int processMsg(connInfo_t *connInfo, unsigned char *msg)
             return -1;
         }
         printf2("Message succesfully decrypted\n");
+        //Copy the outputBuf(decrypted part of message) into the original message buffer, that will make it possible to use our printMessage function again on the decrypted message(Only doing this to make it easier to visually debug messages)
+        uint32_t msgLenBeforeEncryptedData = 4+4+4+IVLEN+TAGLEN+extraMsgLen+addMsgLen;
+        memcpy(msg+msgLenBeforeEncryptedData,decryptedMsgBuffer,msgLen-msgLenBeforeEncryptedData);
+        printMessage("Message structure(decrypted):",msg,0,false,false);
 
         if(connInfo->localNonce==0 && connInfo->remoteNonce==0){
             //No nonce sent but we just recieved the other side's nonce. Hence send ours.
@@ -179,6 +209,26 @@ int processMsg(connInfo_t *connInfo, unsigned char *msg)
         }else if(connInfo->sessionId!=0){
             //Process actual messages
             printf2("PROCESSING ACTUAL MESSAGE\n");
+            uint32_t devtype, opcode, argsLen;
+            getElementFromPckData(encryptedPckDataPtr,(unsigned char*)&devtype,0);
+            getElementFromPckData(encryptedPckDataPtr,(unsigned char*)&opcode,1);
+            argsLen = getElementLengthFromPckData(encryptedPckDataPtr,2);
+            unsigned char args[argsLen];
+            getElementFromPckData(encryptedPckDataPtr,args,2);
+
+            //Serialization
+            devtype = ntohl(devtype);
+            opcode = ntohl(opcode);
+
+            printf2("devtype: %d; opcode: %d; argsLen: %d\n",devtype,opcode,argsLen);
+
+            if(devtype==1){
+                //TEST DEVICE
+                if(opcode==0){
+                    //Beacon packet
+                    printf2("Beacon packet recieved. (Data:%s)\n",args);
+                }
+            }
         }
     }
 

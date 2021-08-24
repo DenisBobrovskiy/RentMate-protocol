@@ -17,7 +17,7 @@
 #define ANSI_COLOR_BLUE  "\x1B[34m"
 #define ANSI_COLOR_WHITE  "\x1B[37m"
 
-char *nodeSettingsFileName = "settings.conf";
+char *nodeSettingsFileName = "nodeSettings.conf";
 nodeSettings_t localNodeSettings;
 globalSettingsStruct globalSettings;
 // connInfo_t connInfo;
@@ -100,12 +100,22 @@ void initializeClient(){
 int processMsg(connInfo_t *connInfo, unsigned char *message){
     decryptPckData(&encryptionContext,message,decryptionBuffer);
     printf2("Processing recieved message\n");
+
+
+    //Since before any communication the client sends a beacon packet to server. If we get a message and sessionID is yet to be established it means the server sent its part of the sessionID.
     if(connInfo->sessionId==0){
         //Get the remote nonce and establish sessionID
         connInfo->remoteNonce = getNonceFromDecryptedData(decryptionBuffer);
         connInfo->sessionId = connInfo->localNonce+connInfo->remoteNonce;
         printf2(ANSI_COLOR_BLUE "SessionID established. SessionID: %u\n" ANSI_COLOR_WHITE,connInfo->sessionId);
         return 0;
+    }else if(connInfo->sessionId!=0){
+        //We received a server side message
+
+        return 0;
+    }else{
+        printf2("ERROR. SessionID is not found for a new message. (This path is not supposed to be accessible)");
+            return 1;
     }
 }
 
@@ -114,15 +124,17 @@ int composeNodeMessage(nodeCmdInfo *currentNodeCmdInfo, unsigned char **pckDataE
     initPckData(pckDataAdd);
     initPckData(pckDataEncrypted);
 
+    uint32_t devType = htonl(currentNodeCmdInfo->devType);
+    uint32_t opcode = htonl(currentNodeCmdInfo->opcode);
+
     appendToPckData(pckDataAdd,(unsigned char*)currentNodeCmdInfo->devId,DEVIDLEN);
 
-    appendToPckData(pckDataEncrypted,(unsigned char*)&(currentNodeCmdInfo->devType),4);
-    appendToPckData(pckDataEncrypted,(unsigned char*)&(currentNodeCmdInfo->opcode),4);
-    appendToPckData(pckDataEncrypted, (unsigned char*)&(currentNodeCmdInfo->argsLen),4);
-    appendToPckData(pckDataEncrypted, (unsigned char*)&(currentNodeCmdInfo->args),currentNodeCmdInfo->argsLen);
+    appendToPckData(pckDataEncrypted,(unsigned char*)&(devType),4);
+    appendToPckData(pckDataEncrypted,(unsigned char*)&(opcode),4);
+    appendToPckData(pckDataEncrypted, (unsigned char*)(currentNodeCmdInfo->args),currentNodeCmdInfo->argsLen);
 
-    printPckData(NULL,*pckDataEncrypted,2);
-    printPckData(NULL,*pckDataAdd,0);
+    printPckData(NULL,*pckDataEncrypted,false,2);
+    printPckData(NULL,*pckDataAdd,false,0);
 
     
     uint32_t pckDataLen = *(uint32_t*)pckDataEncrypted;
@@ -228,7 +240,7 @@ int loadInNodeSettings(){
         if(strcmp(settingName,"devId")==0){
             memcpy(localNodeSettings.devId,settingValue,DEVIDLEN);
         }else if(strcmp(settingName,"devType")==0){
-            localNodeSettings.devType = atoi(settingName);
+            localNodeSettings.devType = atoi(settingValue);
         }
         free(settingName);
         free(settingValue);
@@ -319,3 +331,5 @@ static int printf2(char *formattedInput, ...){
     va_end(args);
     return result;
 }
+
+

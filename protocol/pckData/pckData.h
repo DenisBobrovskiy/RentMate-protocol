@@ -124,9 +124,11 @@ int closeSocket(int socket);
 int processMsg();
 int sendall(int s, unsigned char *buf, int len);
 int readDecryptedData(unsigned char *decryptedData, arrayList *decryptedDataPointers);
-uint32_t getElementFromPckData(arrayList *pointersToData, unsigned char **ptrToElement, int index);
+/* uint32_t getElementFromPckData(arrayList *pointersToData, unsigned char **ptrToElement, int index); */
+uint32_t getElementFromPckData(unsigned char *pckData, unsigned char *output, int index);
+uint32_t getElementLengthFromPckData(unsigned char *pckData, int index);
 int readExtraData(unsigned char *msgPtr, uint32_t addLen, arrayList *extraDataPointers);
-int readAddData(unsigned char *msgPtr, arrayList *addDataPointersAndLength);
+int readAddData(unsigned char *msgPtr, arrayList *addDataPointersAndLength, bool isSerialized);
 int pckDataToNetworkOrder(unsigned char *pckData);
 int pckDataToHostOrder(unsigned char *pckData);
 unsigned char* getPointerToUserAddData(unsigned char *msgPtr);
@@ -180,7 +182,8 @@ int removeConnInfo(arrayList *connInfos, int socket);
 int readDataEntry(arrayList *dataEntries, unsigned char **dataPtr, int index);
 
 
-void printPckData(unsigned char *label, unsigned char *pckData, int colorscheme);
-void printMessage(char labelMsg[255], unsigned char *data, int datatype, bool isEncrypted);
+void printMessage(char labelMsg[255], unsigned char *data, int datatype, bool isEncrypted, bool isSerialized);
+void printPckData(char *label, unsigned char *pckData, int isSerialized, int colorscheme);
+static int printfRecvAll(char *formattedInput, ...);
 
 #endif
