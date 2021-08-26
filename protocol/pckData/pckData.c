@@ -158,7 +158,7 @@ static int deinitPckDataInfoBasic(arrayList *recvHolders){
     return 0;
 }
 
-//Custom connect(). Use instead of normal connect. Allows to keep track of conenctionInfos(sessionIDs) and can be expended even more.
+//Custom connect(). Use instead of normal connect. Allows to keep track of conenctionInfos(sessionIDs)
 //Returns -1 on error
 int connect1(int socket, const struct sockaddr* addr, int sockaddrLen, arrayList *connInfos){
     socklen_t sockLen = sockaddrLen;
@@ -384,7 +384,7 @@ int encryptPckData(mbedtls_gcm_context *ctx,
     uint32_t addLen = protocolSpecificAddLen;  //Total add length
     uint32_t userAddLen = 0;  //Only user defined add length
     if(addDataPck!=NULL){
-        // printf("Add length adding...\n");
+        /* printf2("Add length adding...\n"); */
         userAddLen = *(uint32_t*)addDataPck;
     }
     addLen+=userAddLen;
@@ -398,9 +398,9 @@ int encryptPckData(mbedtls_gcm_context *ctx,
     extraDataLen+=userExtraDataLen;
 
     uint32_t msgLen = 4 + 4 + 4 + IVLEN + TAGLEN + addLen + extraDataLen + 4 + 4 + pckDataLen;
-    // printf2("Msg len: %d\n",msgLen);
-    // printf2("Add len: %d\n",addLen);
-    // printf2("Extra data len: %d\n",extraDataLen);
+    /* printf2("Msg len: %d\n",msgLen); */
+    /* printf2("Add len: %d\n",addLen); */
+    /* printf2("Extra data len: %d\n",extraDataLen); */
 
     //Unencrypted data
     unsigned char *msgLenPtr = outputBuf;

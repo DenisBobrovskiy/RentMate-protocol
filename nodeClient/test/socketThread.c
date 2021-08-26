@@ -44,8 +44,10 @@ void initializeSocket(){
 
 void *socketThread(void *args){
     
+    bool connectionClosedByServer;
     //establish connection at wake up intervals (adjustable)
     while(1){
+        connectionClosedByServer = false;
         initializeSocket();
         if(connect(socketMain,(struct sockaddr*)&newConnAddr,sockLen)==-1){
             printf2("Connection failed\n");
@@ -74,16 +76,21 @@ void *socketThread(void *args){
                 int status = recvAll(&recvHolders,&connInfo,socketMain,recvProcessingBuffer,processMsg);
                 if(status==0){
                     //Connection was closed
+                    /* printf2("Connection closed by server\n"); */
+                    /* close(socketMain); */
+                    /* connectionClosedByServer = true; */
+                    //NOT CLOSED IT JUST GETS 0 BYTES AT THE END OF THE LOOP
                     break;
                 }else if(status==-1){
                     //Error occured
+                    printf2("Error recieving the message\n");
                     break;
                 }
             }
             
         }
 
-        //Check if sessionID (and therefore connection) is established and then send out any pending commands
+        //Check if sessionID (and therefore connection) is established and then send out any pending commands and recieve any pending commands
         if(connInfo.sessionId!=0){
             nodeCmdInfo currentCmdInfo;
             unsigned char *pckDataEncrypted;
@@ -97,9 +104,17 @@ void *socketThread(void *args){
                 print2("DEVID TO BE SENT",currentCmdInfo.devId,16,0);
                 composeNodeMessage(&currentCmdInfo,&pckDataEncrypted,&pckDataAdd);
                 encryptAndSendAll(socketMain,0,&connInfo,&encryptionContext,pckDataEncrypted,pckDataAdd,NULL,tempGSettings,outBuf);
-                   //encryptAndSendAll(socketMain,0,&connInfo,&encryptionContext,pckDataEncrypted,pckDataAdd,NULL,0,sendProcessingBuffer);
-                // encryptAndSendAll
                 
+            }
+
+            //Recieve any pending commands
+            int ret = recvAll(&recvHolders,&connInfo,socketMain,recvProcessingBuffer,processMsg);
+            if(ret==1){
+                //Connection closed
+                initializeConnInfo(&connInfo,0);
+                printf2("Connection closed from server\n");
+                close(socketMain);
+                connectionClosedByServer = true;
             }
 
         }else {
@@ -126,7 +141,9 @@ void *socketThread(void *args){
         //}
 
         //Close connection
-        close(socketMain);
+        if(!connectionClosedByServer){
+            close(socketMain);
+        }
         sleep_ms(wakeUpIntervalMs);
     }
 

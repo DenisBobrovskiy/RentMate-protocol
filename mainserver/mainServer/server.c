@@ -17,6 +17,7 @@
 #include <pthread.h>
 
 //CUSTOM
+#include "commands.h"
 #include "mbedtls/include/mbedtls/gcm.h"
 #include "ArrayList/arrayList.h"
 #include "AES-GCM/aes-gcm.h"
@@ -64,7 +65,7 @@ int main(void){
     //INITIALIZATION
     printf2("Initializing main server\n");
     //modifySetting("passExchangeMethod", 18, 0);
-    initBasicServerData(&connectionsInfo, &recvHolders, &devInfos, &commandsQueue, &globalSettings, 0);
+    initServer();
 
     //Test stuff
 
@@ -74,9 +75,25 @@ int main(void){
     memcpy(testDevInfo.key,"KeyKeyKeyKey1234",KEYLEN);
     addToList(&devInfos,testDevInfo.devId);
 
+    commandRequestCommand_t testCommand;
+    testCommand.opCode = 69; //poweroff the node
+    testCommand.gSettings = 0;
+    testCommand.argsPtr = NULL;
+    testCommand.addPtr = NULL;
+    addToCommandQueue("TestTestTest1234",&testCommand);
+
 
     pthread_create(&epollRecievingThreadID,NULL,epollRecievingThread,NULL);
     pthread_join(epollRecievingThreadID,NULL);
+}
+
+void initServer(){
+    initBasicServerData(&connectionsInfo, &recvHolders, &devInfos, &commandsQueue, &globalSettings, 0);
+    initServerCommandsList();
+}
+
+void deinitServer(){
+
 }
 
 //Processes a message, it can be any kind of message(node msg or user msg)
@@ -193,6 +210,9 @@ int processMsg(connInfo_t *connInfo, unsigned char *msg)
             printf2(ANSI_COLOR_BLUE "SessionID established. SessionID: %u\n" ANSI_COLOR_RESET,connInfo->sessionId);
 
             //NOW SEND OFF ANY MESSAGES IN THE QUEUE
+            sendQueuedMessages(connInfo,devInfo);
+            printf2("Closing the connection\n");
+            close1(connInfo->socket,&connectionsInfo);
 
         }else if(connInfo->remoteNonce==0 && connInfo->localNonce!=0){
             //We sent our nonce before but have just recieved the nonce of the other side
@@ -206,6 +226,10 @@ int processMsg(connInfo_t *connInfo, unsigned char *msg)
             printf2("Nonce local: %d; Nonce remote: %d; Generated sessionID: %d\n", connInfo->localNonce, connInfo->remoteNonce, connInfo->sessionId);
 
             //NOW SEND OFF ANY MESSAGES IN THE QUEUE
+            sendQueuedMessages(connInfo,devInfo);
+            printf2("Closing the connection\n");
+            close1(connInfo->socket,&connectionsInfo);
+
         }else if(connInfo->sessionId!=0){
             //Process actual messages
             printf2("PROCESSING ACTUAL MESSAGE\n");
@@ -222,19 +246,103 @@ int processMsg(connInfo_t *connInfo, unsigned char *msg)
 
             printf2("devtype: %d; opcode: %d; argsLen: %d\n",devtype,opcode,argsLen);
 
-            if(devtype==1){
-                //TEST DEVICE
-                if(opcode==0){
-                    //Beacon packet
-                    printf2("Beacon packet recieved. (Data:%s)\n",args);
-                }
+            if(opcode<=nodeToServerReservedOpCodesUpperLimit){
+                //Reserved opcode henc devtype=0
+                /* printf2("Executing reserved opcode\n"); */
+                serverCommands[0][opcode](args,argsLen);
+            }else{
+                /* printf2("Executing non-reserved opcode\n"); */
+                serverCommands[devtype][opcode](args,argsLen);
             }
+
+            /* if(devtype==1){ */
+            /*     //TEST DEVICE */
+            /*     if(opcode==0){ */
+            /*         //Beacon packet */
+            /*         printf2("Beacon packet recieved. (Data:%s)\n",args); */
+            /*     } */
+            /* } */
         }
     }
 
     //Clear out message buffer
     memset(msg,0,MAXMSGLEN);
 
+}
+
+//Empties the server message queue for specific device and sends them all off to corresponding device
+void sendQueuedMessages(connInfo_t *connInfo, devInfo *devInfo){
+    printf2("Sending off queued messages\n");
+    printf2("Command queue length: %d\n",commandsQueue.length);
+    for(int i = 0; i <commandsQueue.length; i++){
+        commandRequest_t *commandsRequest = getFromList(&commandsQueue,i);
+        /* printf2("our DEVID: %s. Stored DEVID: %s\n",commandsRequest->devId,devInfo->devId); */
+        if((memcmp(commandsRequest->devId,devInfo->devId,DEVIDLEN))==0){
+            //Found corresponding commandsRequest to our DEVID
+            arrayList *commandsList = &(commandsRequest->commandRequestsCommands);
+            for(int i = 0; i< commandsList->length; i++){
+                //Send off all commands from it
+                commandRequestCommand_t *command = getFromList(commandsList,i);
+                sendOffCommand(command,connInfo,devInfo->devId);
+            }
+
+            //Now remove these messages from queue after sending them
+            removeFromList(&commandsQueue,i);
+        }
+    }
+
+}
+
+void addToCommandQueue(unsigned char *DEVID, commandRequestCommand_t *command){
+    for(int i = 0; i<commandsQueue.length; i++){
+        commandRequest_t *commandRequest = getFromList(&commandsQueue,i);
+        if((memcmp(commandRequest->devId,DEVID,DEVIDLEN))==0){
+            //Add to existing commandRequest
+            addToList(&(commandRequest->commandRequestsCommands),command);
+        }
+    }
+    
+    //If no corresponding commandRequest for the DEVID was found. Create a new one and add the command
+    commandRequest_t newCommandRequest;
+    commandRequest_t *newCommandRequestRef = NULL;
+    addToList(&commandsQueue,&newCommandRequest);
+    newCommandRequestRef = getFromList(&commandsQueue,commandsQueue.length-1);
+    memcpy(newCommandRequestRef->devId,DEVID,DEVIDLEN);
+    arrayList newCommandList;
+    initList(&newCommandList,sizeof(commandRequestCommand_t));
+    newCommandRequestRef->commandRequestsCommands = newCommandList;
+    addToList(&(newCommandRequestRef->commandRequestsCommands),command);
+
+
+}
+
+void sendOffCommand(commandRequestCommand_t *command, connInfo_t *connInfo, unsigned char *devId){
+    printf2("Sending off command with opcode: %d\n",command->opCode);
+    unsigned char *encryptedPckDataPtr = NULL;
+    unsigned char *addPckDataPtr = command->addPtr;
+    unsigned char *extraPckDataPtr = NULL;
+
+    initPckData(&encryptedPckDataPtr);
+    appendToPckData(&encryptedPckDataPtr,(unsigned char*)&(command->opCode),sizeof(uint32_t));
+    if(command->argsPtr!=NULL){
+        appendToPckData(&encryptedPckDataPtr,command->argsPtr,command->argsLen);
+    }
+    unsigned char *key = findEncryptionKey(devId);
+    initGCM(&gcmCtx,key,KEYLEN*8);
+    encryptAndSendAll(connInfo->socket,0,connInfo,&gcmCtx,encryptedPckDataPtr,addPckDataPtr,extraPckDataPtr,command->gSettings,sendProcessingBuffer);
+
+}
+
+//Returns the encryption key for the corresponding DEVID by searching through devInfos arrayList
+unsigned char * findEncryptionKey(unsigned char *DEVID){
+    for(int i = 0; i<devInfos.length; i++){
+        devInfo *devInfo = getFromList(&devInfos,i);
+        if((memcmp(devInfo->devId,DEVID,DEVIDLEN))==0){
+            //Found the key
+            return devInfo->key;
+        }
+    }
+    return NULL; //No key found
 }
 
 //Custom printf. Prepends a message with a prefix to simplify analysing output

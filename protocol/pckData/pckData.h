@@ -66,7 +66,7 @@ typedef struct _devInfo{
 	uint32_t devType;   //Type of device. If is 0, then it isnt set.
 }devInfo;
 
-//Structure created by the user to tell a node to execute a list of commands, gets sent from a frontend client to the server(LAN or NAT) and then server quees them up and sends to nodes
+//Structure storing a list of commands that needs to be executed for every DEVID
 typedef struct _commandRequest{
 	unsigned char devId[DEVIDLEN]; //devID of target device
 	arrayList commandRequestsCommands; //list of commands to be executed (commandRequestCommand struct) 
@@ -79,9 +79,9 @@ typedef struct _commandRequestCommand{
 	unsigned char isReservedOpCode;
 	unsigned char *argsPtr; //Malloc based on argsLen
 	uint32_t argsLen;
-	unsigned char *addPtr; //Malloc based on addLem
+	unsigned char *addPtr; //Malloc based on addLen
 	unsigned char addLen;
-	unsigned char gSettings;
+	uint32_t gSettings;
 }commandRequestCommand_t;
 
 //FUNCTIONS----------------------------------------------------------------------------------
@@ -120,6 +120,8 @@ int handleMsgLen(recvHolder *recvHolderToUse, int rs);
 
 int recvAll(arrayList *recvHoldersList, connInfo_t *connInfo, int socket, unsigned char *processBuf, processingCallback processingMsgCallback);
 int accept1(int socket, struct sockaddr *newAddr, socklen_t *newLen, arrayList *connInfos, char connType);
+int close1(int socket, arrayList *connInfos);
+int connect1(int socket, const struct sockaddr* addr, int sockaddrLen, arrayList *connInfos);
 int closeSocket(int socket);
 int processMsg();
 int sendall(int s, unsigned char *buf, int len);

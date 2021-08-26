@@ -111,7 +111,8 @@ int processMsg(connInfo_t *connInfo, unsigned char *message){
         return 0;
     }else if(connInfo->sessionId!=0){
         //We received a server side message
-
+        printf2("Recieved a message from server.\n");
+        printMessage("Recieved message(decrypted)",message,0,false,false);
         return 0;
     }else{
         printf2("ERROR. SessionID is not found for a new message. (This path is not supposed to be accessible)");

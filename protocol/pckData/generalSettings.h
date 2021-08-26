@@ -23,6 +23,8 @@
 #define maxServerCommands 128
 #define maxNodeReservedCommands 512   //Set based on how many commands there are
 #define maxCodeLockCommands 128
+#define maxTestDeviceCommands 255
+#define nodeToServerReservedOpCodesUpperLimit 128 //This means all opcodes from 0-128 are reserved for device agnostic nodeToServer commands (like beacon command for instance which just displays a message from node on the server console)
 
 //PROTOCOL SPECIFIC MACROS
 #define DEVIDLEN 16

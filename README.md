@@ -94,14 +94,20 @@
 
     #### Sending/Recieving Data  
     When sending a packet from node to server it is encrypted using a key specific to that node which is established on first connection. Then the server uses DEVID unique to each node sent in plaintext with each packet to figure out which key to use to decrypt the rest of the message.  
-    **(From)Node Packet structure:**  
+    **NodeToServer Packet structure:**  
 
     | name          | size(bytes)        | limits(bytes)      | type      |
     | ---           | :---:              | :---:              | :---:     |
     | DEVID         | 16                 | 0-15               | ADD       |
     | devtype       | 4                  | 0-3                | Encrypted | 
     | opcode        | 4                  | 4-7                | Encrypted |
-    | argsLen       | 4                  | 8-11               | Encrypted |
+    | args          | argsLen            | 12-(12+argsLen)    | Encrypted |
+    
+    **ServerToNode Packet structure:**  
+
+    | name          | size(bytes)        | limits(bytes)      | type      |
+    | ---           | :---:              | :---:              | :---:     |
+    | opcode        | 4                  | 4-7                | Encrypted |
     | args          | argsLen            | 12-(12+argsLen)    | Encrypted |
 
 
@@ -109,12 +115,17 @@
 
     Every device(devId) has a different set of opCodes. Also for every device there are 2 sets of opCodes. One for the server command to device and one for the node command to the server  
     
-    **devType: 1 (TestDevice):**  
+    **devType: NONE (These are the reserved opcodes):**  
     | opcode    | nodeToServer              | serverToNode              |
     | ---       | ---                       | ---                       |
     | 0         | beacon packet             | poweroff                  |
     | 1         | message packet            | message to node           |
 
+    **devType: 1 (TestDevice):**  
+    | opcode    | nodeToServer              | serverToNode              |
+    | ---       | ---                       | ---                       |
+    | 129       | NONE                      | NONE                      |
+    | 130       | NONE                      | NONE                      |
 
 
 * ### Packet handling
