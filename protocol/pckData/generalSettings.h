@@ -1,6 +1,9 @@
 #ifndef GENERALSETTINGS_HEADER
 #define GENERALSETTINGS_HEADER
 
+// if 1 library is for esp32 if 0 library is for a x64 linux machine
+#define libraryVersion 0
+
 //PROTOCOL VERSION
 #define currentSystemVersion 0
 

@@ -1,13 +1,24 @@
 #ifndef PCKDATA_H
 #define PCKDATA_H
 
+
+#include "generalSettings.h"
+
+#if libraryVersion==1
+#include "aes-gcm.h"
+#include "arrayList.h"
+#include "mbedtls/gcm.h"
+#include "lwip/sockets.h"
+#include "lwip/inet.h"
+#elif libraryVersion==0
 #include "AES-GCM/aes-gcm.h"
 #include "ArrayList/arrayList.h"
 #include "mbedtls/include/mbedtls/gcm.h"
+#endif
+
 #include <stdint.h>
 #include <arpa/inet.h>
 #include <stdarg.h>
-#include "generalSettings.h"
 #include <stdbool.h>
 
 //DEFINES
@@ -108,7 +119,7 @@ int decryptPckData(mbedtls_gcm_context *ctx, unsigned char *encryptedMsg, unsign
 //datatype = 0: prints bytes in integer form
 //datatype = 1: prints bytes in character form
 //datatype = 2: prints 32 bit numbers
-void print2(char labelMsg[255], unsigned char *data, int length, int datatype);
+void print2(char *labelMsg, unsigned char *data, int length, int datatype);
 
 typedef int (*processingCallback)(connInfo_t *connInfo, unsigned char *processingBuf);
 int resetRecvHolder(recvHolder *holder,int socket);
@@ -129,8 +140,6 @@ int readDecryptedData(unsigned char *decryptedData, arrayList *decryptedDataPoin
 /* uint32_t getElementFromPckData(arrayList *pointersToData, unsigned char **ptrToElement, int index); */
 uint32_t getElementFromPckData(unsigned char *pckData, unsigned char *output, int index);
 uint32_t getElementLengthFromPckData(unsigned char *pckData, int index);
-int readExtraData(unsigned char *msgPtr, uint32_t addLen, arrayList *extraDataPointers);
-int readAddData(unsigned char *msgPtr, arrayList *addDataPointersAndLength, bool isSerialized);
 int pckDataToNetworkOrder(unsigned char *pckData);
 int pckDataToHostOrder(unsigned char *pckData);
 unsigned char* getPointerToUserAddData(unsigned char *msgPtr);
@@ -181,10 +190,10 @@ static int printf2(char *formattedInput, ...);
 connInfo_t *findConnInfo(arrayList *connInfos, int socket);
 int removeConnInfo(arrayList *connInfos, int socket);
 
-int readDataEntry(arrayList *dataEntries, unsigned char **dataPtr, int index);
+/* int readDataEntry(arrayList *dataEntries, unsigned char **dataPtr, int index); */
 
 
-void printMessage(char labelMsg[255], unsigned char *data, int datatype, bool isEncrypted, bool isSerialized);
+void printMessage(char *labelMsg, unsigned char *data, int datatype, bool isEncrypted, bool isSerialized);
 void printPckData(char *label, unsigned char *pckData, int isSerialized, int colorscheme);
 static int printfRecvAll(char *formattedInput, ...);
 

@@ -605,7 +605,7 @@ int decryptPckData(mbedtls_gcm_context *ctx, unsigned char *encryptedMsg, unsign
 //datatype = 0: prints bytes in integer form
 //datatype = 1: prints bytes in character form
 //datatype = 2: prints 32 bit numbers
-void print2(char labelMsg[255], unsigned char *data, int length, int datatype){
+void print2(char *labelMsg, unsigned char *data, int length, int datatype){
 #if PCKDATAMESSAGES
     int increments = 1;
     //data = unsigned char (numbers)
@@ -658,7 +658,7 @@ void print2(char labelMsg[255], unsigned char *data, int length, int datatype){
 }
 
 
-void printMessage(char labelMsg[255], unsigned char *data, int datatype, bool isEncrypted, bool isSerialized){
+void printMessage(char *labelMsg, unsigned char *data, int datatype, bool isEncrypted, bool isSerialized){
 #if PCKDATAMESSAGES
     int increments = 1;
     //data = unsigned char (numbers)
@@ -771,59 +771,59 @@ unsigned char* getPointerToUserAddData(unsigned char *msgPtr){
 //Reads addData from message and assigns every addPckDataElement pointer to arrayList addDataPointers.
 //IMPORTANT: USE AFTER MSG WAS DECRYPTED TO VERIFY THAT IT WASNT MODIFIED BY 3RD PARTY (If it were, the tag would be incorrect and decryption will fail!)
 //NOTE: Use before decryption only if completely necessary or for unsensitive info (such as for devId, because you need to know it for decryption key)
-int readAddData(unsigned char *msgPtr, arrayList *addDataPointersAndLength, bool isSerialized){
-    //Read only user defined add, ignore stuff such as versionNum and anything else protocol defined
-     // printf("Read add data func called\n");
-     // print2("READ ADD DATA MESSAGE PASSED:",msgPtr,255,0);
-    initList(addDataPointersAndLength,4+sizeof(unsigned char*));
-    //Acquire user add data length
-    uint32_t userAddLen;
-    if(isSerialized){
-        userAddLen = ntohl(*(uint32_t*)(msgPtr+4))-protocolSpecificAddLen;
-    }else{
-        userAddLen = (*(uint32_t*)(msgPtr+4))-protocolSpecificAddLen;
+/* int readAddData(unsigned char *msgPtr, arrayList *addDataPointersAndLength, bool isSerialized){ */
+/*     //Read only user defined add, ignore stuff such as versionNum and anything else protocol defined */
+/*      // printf("Read add data func called\n"); */
+/*      // print2("READ ADD DATA MESSAGE PASSED:",msgPtr,255,0); */
+/*     initList(addDataPointersAndLength,4+sizeof(unsigned char*)); */
+/*     //Acquire user add data length */
+/*     uint32_t userAddLen; */
+/*     if(isSerialized){ */
+/*         userAddLen = ntohl(*(uint32_t*)(msgPtr+4))-protocolSpecificAddLen; */
+/*     }else{ */
+/*         userAddLen = (*(uint32_t*)(msgPtr+4))-protocolSpecificAddLen; */
 
-    }
-    // printf2("User add len: %d\n",userAddLen);
-    unsigned char *msgAddPtr = msgPtr + 4 + 4 + 4 + IVLEN + TAGLEN + protocolSpecificAddLen;
-    int distance = 4 + 4 + 4 + IVLEN + TAGLEN + protocolSpecificAddLen;
-     // print2("Add data original:",msgAddPtr,36,0);
-     // printf2("distance: %d\n",distance);
-    uint32_t pckDataLen = *(uint32_t*)msgAddPtr;
-    if(isSerialized){
-        pckDataLen = ntohl(pckDataLen);
-    }else{
-        pckDataLen = pckDataLen;
-    }
-     // printf2("pckData len: %d\n",pckDataLen);
-    uint32_t currentLen = 8;  //4(pckDataLen) + 4(pckDataIncrements)
-    uint32_t currentElemLen = 0;
-    unsigned char *currentDataPtr = NULL;
-    while(currentLen<pckDataLen && currentLen<userAddLen){
-        // printf2("current len: %d\n",currentLen);
-        currentElemLen = *((uint32_t*)(msgAddPtr+currentLen));
-        if(isSerialized){
-            currentElemLen = ntohl(currentElemLen);
-        }else{
-            currentElemLen = currentElemLen;
-        }
-        unsigned char elementData[4+sizeof(unsigned char*)];
-        *(uint32_t*)elementData = currentElemLen;
-         // printf2("element len: %d\n",currentElemLen);
-        unsigned char *addEntryPtr = msgAddPtr+currentLen+4;
-        memcpy(elementData+4,&addEntryPtr, sizeof(unsigned char *));
-        unsigned char **elemDataPtr = elementData+4;
-        // printf2("Add entry ptr original: %p\n", addEntryPtr);
-        // printf2("Add entry ptr copied: %p\n", *elemDataPtr);
-        // print2("ptr before",addEntryPtr,sizeof(unsigned char*),0);
-        // print2("ptr after",(elementData),sizeof(unsigned char*),0);
-        // print2("Current add element data:",elementData,12,0);
-        addToList(addDataPointersAndLength,elementData);
-        currentLen+=(currentElemLen+4);
-    }
-    // printf2("Finished reading user add data\n");
-    return 0;
-}
+/*     } */
+/*     // printf2("User add len: %d\n",userAddLen); */
+/*     unsigned char *msgAddPtr = msgPtr + 4 + 4 + 4 + IVLEN + TAGLEN + protocolSpecificAddLen; */
+/*     int distance = 4 + 4 + 4 + IVLEN + TAGLEN + protocolSpecificAddLen; */
+/*      // print2("Add data original:",msgAddPtr,36,0); */
+/*      // printf2("distance: %d\n",distance); */
+/*     uint32_t pckDataLen = *(uint32_t*)msgAddPtr; */
+/*     if(isSerialized){ */
+/*         pckDataLen = ntohl(pckDataLen); */
+/*     }else{ */
+/*         pckDataLen = pckDataLen; */
+/*     } */
+/*      // printf2("pckData len: %d\n",pckDataLen); */
+/*     uint32_t currentLen = 8;  //4(pckDataLen) + 4(pckDataIncrements) */
+/*     uint32_t currentElemLen = 0; */
+/*     unsigned char *currentDataPtr = NULL; */
+/*     while(currentLen<pckDataLen && currentLen<userAddLen){ */
+/*         // printf2("current len: %d\n",currentLen); */
+/*         currentElemLen = *((uint32_t*)(msgAddPtr+currentLen)); */
+/*         if(isSerialized){ */
+/*             currentElemLen = ntohl(currentElemLen); */
+/*         }else{ */
+/*             currentElemLen = currentElemLen; */
+/*         } */
+/*         unsigned char elementData[4+sizeof(unsigned char*)]; */
+/*         *(uint32_t*)elementData = currentElemLen; */
+/*          // printf2("element len: %d\n",currentElemLen); */
+/*         unsigned char *addEntryPtr = msgAddPtr+currentLen+4; */
+/*         memcpy(elementData+4,&addEntryPtr, sizeof(unsigned char *)); */
+/*         unsigned char **elemDataPtr = elementData+4; */
+/*         // printf2("Add entry ptr original: %p\n", addEntryPtr); */
+/*         // printf2("Add entry ptr copied: %p\n", *elemDataPtr); */
+/*         // print2("ptr before",addEntryPtr,sizeof(unsigned char*),0); */
+/*         // print2("ptr after",(elementData),sizeof(unsigned char*),0); */
+/*         // print2("Current add element data:",elementData,12,0); */
+/*         addToList(addDataPointersAndLength,elementData); */
+/*         currentLen+=(currentElemLen+4); */
+/*     } */
+/*     // printf2("Finished reading user add data\n"); */
+/*     return 0; */
+/* } */
 
 //Reads extra data and assigns every pckData element pointer into an arrayList extraDataPointers. ExtraDdata is used for non-encrypted data that needs not be verified(so can be modified by 3rd party)
 int readExtraData(unsigned char *msgPtr, uint32_t addLen, arrayList *extraDataPointers){
@@ -1491,19 +1491,19 @@ int modifySetting(unsigned char *settingName, int settingLen, uint32_t newOption
 //}
 
 //Used to read a data entry in form of [4 bytes for length of data][8 bytes for pointer to data] from the arrayList of such entries. Used to read output of readAddData(), readDecryptedData(). Returns size of data entry and assigns dataEntryPtr to the pointer to that data
-int readDataEntry(arrayList *dataEntries, unsigned char **dataPtr, int index){
-    unsigned char *dataEntryPtr = getFromList(dataEntries,index);
-    if(dataEntryPtr==NULL){
-        printf2("Wrong index for readDataEntry() function\n");
-        *dataPtr = NULL;
-        return -1;
-    }
-    // print2("dataentry:",dataEntryPtr,16,0);
-    unsigned char **tempPtrToPtr = (unsigned char **)(dataEntryPtr+4);
-    // printf2("Finished reading user add data\n");
-    *dataPtr = *tempPtrToPtr;
-    return *(uint32_t*)dataEntryPtr;
-}
+/* int readDataEntry(arrayList *dataEntries, unsigned char **dataPtr, int index){ */
+/*     unsigned char *dataEntryPtr = getFromList(dataEntries,index); */
+/*     if(dataEntryPtr==NULL){ */
+/*         printf2("Wrong index for readDataEntry() function\n"); */
+/*         *dataPtr = NULL; */
+/*         return -1; */
+/*     } */
+/*     // print2("dataentry:",dataEntryPtr,16,0); */
+/*     unsigned char **tempPtrToPtr = (unsigned char **)(dataEntryPtr+4); */
+/*     // printf2("Finished reading user add data\n"); */
+/*     *dataPtr = *tempPtrToPtr; */
+/*     return *(uint32_t*)dataEntryPtr; */
+/* } */
 
 
 //Custom printf. Prepends a message with a prefix to simplify analysing output

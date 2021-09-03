@@ -133,18 +133,17 @@ int processMsg(connInfo_t *connInfo, unsigned char *msg)
     if(connInfo->connectionType==0){
         //Connection to node
         printf2("Processing a node message...\n");
-        unsigned char *devIdFromMessage;
+        unsigned char devIdFromMessage[DEVIDLEN];
 
         devInfo *devInfo;
-
-        //Get devId from the message's ADD data (not verified yet, verify that it hasnt been spoofed after decryption!!)
-        arrayList tempAddData;
-        arrayList decryptedMsg;
-        readAddData(msg,&tempAddData,true);
-        if(readDataEntry(&tempAddData,&devIdFromMessage,0)==-1){
+        pckDataToHostOrder(addPckDataPtr);
+        if(getElementFromPckData(addPckDataPtr,devIdFromMessage,0)==-1){
             printf2("DEVID not present in ADD data, so ignore this message, since without DEVID we cant decrypt\n");
             return -1;
         }
+        pckDataToNetworkOrder(addPckDataPtr);
+        printf2("BOOM\n");
+
         // print2("DEVID FROM ADD DATA",devIdFromMessage,DEVIDLEN,0);
 
 
@@ -165,7 +164,6 @@ int processMsg(connInfo_t *connInfo, unsigned char *msg)
             printf2("No device infos available. Cant decrypt, ignoring this message\n");
             return -1;
         }
-        freeArrayList(&tempAddData);
 
         printf2("Message's DEVID: %.16s, KEY: %.16s\n",devInfo->devId,devInfo->key);
 
@@ -217,7 +215,7 @@ int processMsg(connInfo_t *connInfo, unsigned char *msg)
         }else if(connInfo->remoteNonce==0 && connInfo->localNonce!=0){
             //We sent our nonce before but have just recieved the nonce of the other side
 
-            uint32_t *remoteNonce = getFromList(&decryptedMsg,0);
+            uint32_t *remoteNonce = (uint32_t*)encryptedDataPtr;
             connInfo->remoteNonce = *remoteNonce;
             
             connInfo->sessionId = connInfo->remoteNonce + connInfo->localNonce;  //GENERATING THE NEW SESSION ID BY ADDING UP THE NONCES
