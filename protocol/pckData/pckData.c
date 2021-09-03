@@ -86,7 +86,7 @@ the sessionId's dont get messed up.
 
 
 
-unsigned char settingsFileName[30] = "settings.conf";
+char settingsFileName[30] = "settings.conf";
 
 //inits all the defaults on a client side application
 int initBasicClientData(arrayList *recvHolders,
@@ -950,7 +950,7 @@ int recvAll(arrayList *recvHoldersList, connInfo_t *connInfo, int socket, unsign
 }
 
 //Part of recvAll() function. Handles message length
-int handleMsgLen(recvHolder *recvHolderToUse, int rs){
+void handleMsgLen(recvHolder *recvHolderToUse, int rs){
     printfRecvAll("FINDING MSG LENGTH\n");
     //Assign pointer to start of msg if it is the very first bit of data sent from it
     if(recvHolderToUse->firstMsgSize==0 && recvHolderToUse->firstMsgSize!=5){
@@ -1076,12 +1076,15 @@ int initRecvHolder(recvHolder *holder, int maxSize, int socket){
     holder->firstMsgSizeUsed = 0;
     if((holder->recvQueue = malloc(holder->size))==NULL){
         perror("Failed to init holder");
-        exit(1);
+        return -1;
+        /* exit(1); */
     }
+
+    return 0;
 }
 
 //Sets all values in recvHolder to defaults. Should only be used in recvAll(). DOESNT DEALLOC THE recvHolder, only defaults its values
-int resetRecvHolder(recvHolder *holder,int socket){
+void resetRecvHolder(recvHolder *holder,int socket){
     printfRecvAll("Reseting recvHolder\n");
     holder->socket = socket;
     holder->firstMsgPtr = NULL;
@@ -1096,12 +1099,13 @@ int removeRecvHolder(arrayList *recvHolders, int index){
     recvHolder *tempRecvHolder;
     if((tempRecvHolder = getFromList(recvHolders,index))==NULL){
         printfRecvAll("Inexistent index provided to removeRecvQueue function!!\n");
-        exit(1);
+        return -1;
     }
     free(tempRecvHolder->recvQueue);
 
     //Remove recvHolder itself from recvHolders
     removeFromList(recvHolders,index);
+    return 0;
 }
 
 //Modification of send() syscall. Sends everything over unlike send()
@@ -1123,14 +1127,6 @@ int sendall(int s, unsigned char *buf, int len)
     return n==-1?-1:0; // return -1 on failure, 0 on success
 }
 
-//Sends a part of sessionId. Both communicating nodes are required to do this
-int sendPartOfSessionId(arrayList *connInfos, int socket){
-    //Generated new random number
-    uint32_t partOfSessionId;
-    getrandom(&partOfSessionId,4,0);
-
-
-}
 
 //Recieve part of sessionId. Both communicating nodes are required to do this
 // int recievePartOfSessionId(arrayList *connInfos, arrayList *recvHolders, int socket, unsigned char *processingBuffer){
@@ -1213,11 +1209,9 @@ int initializeSettingsData(globalSettingsStruct *globalSettings){
     //Analyze every line
 	while(fgets(temp,60,settingsFile)!=NULL){
 		currentCharacters = strcspn(temp,"\n");
-		char *settingPtr = temp;
         char *settingName;
         char *settingValue;
         char *settingNameBegin;
-        char *valueNameBegin;
         int settingsNamePassedFirstQuote = 0;
         int settingNameComplete = 0;
         char *settingValueBegin;
@@ -1282,13 +1276,13 @@ int modifySetting(unsigned char *settingName, int settingLen, uint32_t newOption
 		perror("Failure generating temp settings file\n");
 		return -1;
 	}
-	unsigned char temp[80];
+	char temp[80];
 	int lastPos;
 	int currentCharacters;
-	unsigned char *settingPtr;
+	char *settingPtr;
 	char isSettingPtrComplete = 0;
-	uint32_t tempSettingLen;
-	int currentOption;
+	/* uint32_t tempSettingLen; */
+	/* int currentOption; */
     int optionFound = 0;
 	while(fgets(temp,60,settingsFile)!=NULL){
 		currentCharacters = strcspn(temp,"\n");
@@ -1297,10 +1291,10 @@ int modifySetting(unsigned char *settingName, int settingLen, uint32_t newOption
 		for(int i = 0; i<currentCharacters;i++){
 			if((*(temp+i)==' ' || *(temp+i)==':') && isSettingPtrComplete == 0 ){
 				//Completely got the setting name
-				tempSettingLen = i;
+				/* tempSettingLen = i; */
 				isSettingPtrComplete = 1;
 			}else if(isSettingPtrComplete==1 && (*(temp+i)!=' ' || *(temp+i)!=':')){
-				currentOption = atoi(temp+i);
+				/* currentOption = atoi(temp+i); */
 				isSettingPtrComplete = 0;
 				break;
 			}
@@ -1334,6 +1328,8 @@ int modifySetting(unsigned char *settingName, int settingLen, uint32_t newOption
 
 	fclose(settingsFile);
 	fclose(tempSettingsFile);
+
+    return 0;
 }
 
 
