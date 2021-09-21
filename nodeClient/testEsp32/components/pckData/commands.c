@@ -15,7 +15,7 @@ int initOpCodes(uint32_t devType){
     devTypeToCommands = malloc(maxDevTypes*sizeof(commandPtr));
     //devTypeToCommands[0] = malloc(sizeof(commandPtr)*maxCodeLockCommands);
     //devTypeToCommands[1] = malloc(sizeof(commandPtr)*maxCodeLockCommands);
-
+    
     for(int i = 0; i <maxDevTypes; i++){
         devTypeToCommands[i] = NULL;
     }

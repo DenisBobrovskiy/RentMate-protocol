@@ -122,12 +122,12 @@ int decryptPckData(mbedtls_gcm_context *ctx, unsigned char *encryptedMsg, unsign
 void print2(char *labelMsg, unsigned char *data, int length, int datatype);
 
 typedef int (*processingCallback)(connInfo_t *connInfo, unsigned char *processingBuf);
-int resetRecvHolder(recvHolder *holder,int socket);
+void resetRecvHolder(recvHolder *holder,int socket);
 int initRecvHolder(recvHolder *holder, int maxSize, int socket);
 int removeRecvHolder(arrayList *recvHolders, int index);
 void circulateBuffer(recvHolder *recvHolderToUse, int rs);
 int handleMsgData(connInfo_t *connInfo, recvHolder *recvHolderToUse, int rs, unsigned char *processMsgBuffer, processingCallback processingMsgCallback);
-int handleMsgLen(recvHolder *recvHolderToUse, int rs);
+void handleMsgLen(recvHolder *recvHolderToUse, int rs);
 
 int recvAll(arrayList *recvHoldersList, connInfo_t *connInfo, int socket, unsigned char *processBuf, processingCallback processingMsgCallback);
 int accept1(int socket, struct sockaddr *newAddr, socklen_t *newLen, arrayList *connInfos, char connType);
@@ -140,8 +140,6 @@ int readDecryptedData(unsigned char *decryptedData, arrayList *decryptedDataPoin
 /* uint32_t getElementFromPckData(arrayList *pointersToData, unsigned char **ptrToElement, int index); */
 uint32_t getElementFromPckData(unsigned char *pckData, unsigned char *output, int index);
 uint32_t getElementLengthFromPckData(unsigned char *pckData, int index);
-/* int readExtraData(unsigned char *msgPtr, uint32_t addLen, arrayList *extraDataPointers); */
-/* int readAddData(unsigned char *msgPtr, arrayList *addDataPointersAndLength, bool isSerialized); */
 int pckDataToNetworkOrder(unsigned char *pckData);
 int pckDataToHostOrder(unsigned char *pckData);
 unsigned char* getPointerToUserAddData(unsigned char *msgPtr);
@@ -180,9 +178,6 @@ int encryptAndSendAll(int socket,
                     unsigned char *outBuf
                     );
 
-// int sendPartOfSessionId(arrayList *connInfos, int socket);
-// int recievePartOfSessionId(arrayList *connInfos, arrayList *recvHolders, int socket, unsigned char *processingBuffer);
-// static int internalRecievePartOfSessionId(connInfo_t *connInfo, unsigned char *processingBuf);
 
 int initializeSettingsData(globalSettingsStruct *globals);
 

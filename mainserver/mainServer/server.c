@@ -189,7 +189,7 @@ int processMsg(connInfo_t *connInfo, unsigned char *msg)
             //}
 
             //Since we are recieving a message and no nonce from our side has been sent, the other side must have sent their nonce on this message, hence get it.
-            uint32_t remoteNonce = getNonceFromDecryptedData(decryptedMsgBuffer);
+            uint32_t remoteNonce = *((uint32_t*)encryptedDataPtr);
             connInfo->remoteNonce = remoteNonce;
 
             //Send off our part of nonce to remote (node)

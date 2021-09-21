@@ -86,7 +86,7 @@ the sessionId's dont get messed up.
 
 
 
-unsigned char settingsFileName[30] = "settings.conf";
+char settingsFileName[30] = "settings.conf";
 
 //inits all the defaults on a client side application
 int initBasicClientData(arrayList *recvHolders,
@@ -768,139 +768,6 @@ unsigned char* getPointerToUserAddData(unsigned char *msgPtr){
     return addPtr;
 }
 
-//Reads addData from message and assigns every addPckDataElement pointer to arrayList addDataPointers.
-//IMPORTANT: USE AFTER MSG WAS DECRYPTED TO VERIFY THAT IT WASNT MODIFIED BY 3RD PARTY (If it were, the tag would be incorrect and decryption will fail!)
-//NOTE: Use before decryption only if completely necessary or for unsensitive info (such as for devId, because you need to know it for decryption key)
-/* int readAddData(unsigned char *msgPtr, arrayList *addDataPointersAndLength, bool isSerialized){ */
-/*     //Read only user defined add, ignore stuff such as versionNum and anything else protocol defined */
-/*      // printf("Read add data func called\n"); */
-/*      // print2("READ ADD DATA MESSAGE PASSED:",msgPtr,255,0); */
-/*     initList(addDataPointersAndLength,4+sizeof(unsigned char*)); */
-/*     //Acquire user add data length */
-/*     uint32_t userAddLen; */
-/*     if(isSerialized){ */
-/*         userAddLen = ntohl(*(uint32_t*)(msgPtr+4))-protocolSpecificAddLen; */
-/*     }else{ */
-/*         userAddLen = (*(uint32_t*)(msgPtr+4))-protocolSpecificAddLen; */
-
-/*     } */
-/*     // printf2("User add len: %d\n",userAddLen); */
-/*     unsigned char *msgAddPtr = msgPtr + 4 + 4 + 4 + IVLEN + TAGLEN + protocolSpecificAddLen; */
-/*     int distance = 4 + 4 + 4 + IVLEN + TAGLEN + protocolSpecificAddLen; */
-/*      // print2("Add data original:",msgAddPtr,36,0); */
-/*      // printf2("distance: %d\n",distance); */
-/*     uint32_t pckDataLen = *(uint32_t*)msgAddPtr; */
-/*     if(isSerialized){ */
-/*         pckDataLen = ntohl(pckDataLen); */
-/*     }else{ */
-/*         pckDataLen = pckDataLen; */
-/*     } */
-/*      // printf2("pckData len: %d\n",pckDataLen); */
-/*     uint32_t currentLen = 8;  //4(pckDataLen) + 4(pckDataIncrements) */
-/*     uint32_t currentElemLen = 0; */
-/*     unsigned char *currentDataPtr = NULL; */
-/*     while(currentLen<pckDataLen && currentLen<userAddLen){ */
-/*         // printf2("current len: %d\n",currentLen); */
-/*         currentElemLen = *((uint32_t*)(msgAddPtr+currentLen)); */
-/*         if(isSerialized){ */
-/*             currentElemLen = ntohl(currentElemLen); */
-/*         }else{ */
-/*             currentElemLen = currentElemLen; */
-/*         } */
-/*         unsigned char elementData[4+sizeof(unsigned char*)]; */
-/*         *(uint32_t*)elementData = currentElemLen; */
-/*          // printf2("element len: %d\n",currentElemLen); */
-/*         unsigned char *addEntryPtr = msgAddPtr+currentLen+4; */
-/*         memcpy(elementData+4,&addEntryPtr, sizeof(unsigned char *)); */
-/*         unsigned char **elemDataPtr = elementData+4; */
-/*         // printf2("Add entry ptr original: %p\n", addEntryPtr); */
-/*         // printf2("Add entry ptr copied: %p\n", *elemDataPtr); */
-/*         // print2("ptr before",addEntryPtr,sizeof(unsigned char*),0); */
-/*         // print2("ptr after",(elementData),sizeof(unsigned char*),0); */
-/*         // print2("Current add element data:",elementData,12,0); */
-/*         addToList(addDataPointersAndLength,elementData); */
-/*         currentLen+=(currentElemLen+4); */
-/*     } */
-/*     // printf2("Finished reading user add data\n"); */
-/*     return 0; */
-/* } */
-
-//Reads extra data and assigns every pckData element pointer into an arrayList extraDataPointers. ExtraDdata is used for non-encrypted data that needs not be verified(so can be modified by 3rd party)
-int readExtraData(unsigned char *msgPtr, uint32_t addLen, arrayList *extraDataPointers){
-    int datasize = 4 + sizeof(unsigned char*);
-    initList(extraDataPointers,datasize);
-    unsigned char *msgExtraDataPtr = msgPtr + 4 + 4 + 4 + IVLEN + TAGLEN + addLen + protocolSpecificExtraDataLen;
-    uint32_t pckDataLen = *(uint32_t*)msgExtraDataPtr;
-    uint32_t currentLen = 8;  //4(pckDataLen) + 4(pckDataIncrements)
-    uint32_t currentElemLen = 0;
-    unsigned char *currentDataPtr = NULL;
-    while(currentLen<pckDataLen){
-        // printf("current len: %d\n",currentLen);
-        unsigned char elementData[4+sizeof(unsigned char*)];
-        currentElemLen = *(uint32_t*)(msgExtraDataPtr+currentLen);
-        *(uint32_t*)elementData = currentElemLen;
-        // printf("element len: %d\n",currentElemLen);
-        unsigned char *extraDataEntryPtr = msgExtraDataPtr+currentLen+4;
-        memcpy(elementData+4,&extraDataEntryPtr, sizeof(unsigned char *));
-        // print2("Current add element data:",elementData,12,0);
-        addToList(extraDataPointers,elementData);
-        currentLen+=(currentElemLen+4);
-    }
-    return 0;
-}
-
-//Read decrypted pckData and assigns a pointer to every pckData element into decrypedDatapointers arrayList
-int readDecryptedData(unsigned char *decryptedData, arrayList *decryptedDataPointers){
-    uint32_t totalLen = 16;  //4(nonce) + 4(pckGSettings) + 4(pckDataLenTotal) + 4(pckDataIncrements)
-    uint32_t decryptedDataLen = *(uint32_t*)(decryptedData+8);
-    initList(decryptedDataPointers,(sizeof(unsigned char*)+4));  //Enough to store length and data pointer
-    //Read all elements
-    uint32_t currentElementLen = 0;
-    while(totalLen<decryptedDataLen){
-        currentElementLen = *(uint32_t*)(decryptedData+totalLen);
-        // printf("current element len: %d. Total len: %d\n",currentElementLen,totalLen);
-        //Assign element data to arrayList
-        unsigned char elementData[sizeof(unsigned char *)+4];
-        *(uint32_t*)elementData = currentElementLen;
-        unsigned char *tempDataPtr;
-        unsigned char *tempSourcePtr = decryptedData+totalLen+4;
-        memcpy(&tempDataPtr,&tempSourcePtr,sizeof(unsigned char*));
-        memcpy((elementData+4),&tempDataPtr,sizeof(unsigned char*));
-        print2("ADDING ELEMENT TO LIST:",elementData,12,0);
-        addToList(decryptedDataPointers,elementData);
-        totalLen += (4+currentElementLen);
-    }
-    return 0;
-}
-
-uint32_t getNonceFromDecryptedData(unsigned char *decryptedDataPtr){
-    return ntohl(*(uint32_t*)decryptedDataPtr);
-}
-
-uint32_t getPckGSettingsFromDecryptedData(unsigned char *decryptedDataPtr){
-    return ntohl(*(uint32_t*)(decryptedDataPtr+4));
-}
-
-//Gets a pckData element from pointerToData at specific index, spitting out its length as return value and pointer to element itself is assigned to *ptrToElement
-//Returns elements length (or -1 on error)
-/* uint32_t getElementFromPckData(arrayList *pointersToData, unsigned char **ptrToElement, int index){ */
-/*     unsigned char *tempElementPtr = getFromList(pointersToData,index); */
-/*     unsigned char *dataPtr; */
-/*     if(tempElementPtr==NULL){ */
-/*         printf2("Wrong index in pckData!\n"); */
-/*         *ptrToElement = NULL; */
-/*         return -1; */
-/*     } */
-/*     memcpy(&dataPtr,(tempElementPtr+4),sizeof(unsigned char*)); */
-    
-/*     // print2("Got element from list:",tempElementPtr,12,0); */
-/*     //print2("Pointer:",&dataPtr,10,0); */
-/*     //print2("Pointer dereferenced:",dataPtr,8,0); */
-/*     //Assign pointer */
-/*     *ptrToElement = dataPtr; */
-/*     //Return element length */
-/*     return *(uint32_t*)(tempElementPtr); */
-/* } */
 
 //Returns elements length or -1 on error. Make sure data is deserialized before using. Index starts from 0-infinity for every element in pckData in sequential order
 uint32_t getElementFromPckData(unsigned char *pckData, unsigned char *output, int index){
@@ -1083,7 +950,7 @@ int recvAll(arrayList *recvHoldersList, connInfo_t *connInfo, int socket, unsign
 }
 
 //Part of recvAll() function. Handles message length
-int handleMsgLen(recvHolder *recvHolderToUse, int rs){
+void handleMsgLen(recvHolder *recvHolderToUse, int rs){
     printfRecvAll("FINDING MSG LENGTH\n");
     //Assign pointer to start of msg if it is the very first bit of data sent from it
     if(recvHolderToUse->firstMsgSize==0 && recvHolderToUse->firstMsgSize!=5){
@@ -1209,12 +1076,15 @@ int initRecvHolder(recvHolder *holder, int maxSize, int socket){
     holder->firstMsgSizeUsed = 0;
     if((holder->recvQueue = malloc(holder->size))==NULL){
         perror("Failed to init holder");
-        exit(1);
+        return -1;
+        /* exit(1); */
     }
+
+    return 0;
 }
 
 //Sets all values in recvHolder to defaults. Should only be used in recvAll(). DOESNT DEALLOC THE recvHolder, only defaults its values
-int resetRecvHolder(recvHolder *holder,int socket){
+void resetRecvHolder(recvHolder *holder,int socket){
     printfRecvAll("Reseting recvHolder\n");
     holder->socket = socket;
     holder->firstMsgPtr = NULL;
@@ -1229,12 +1099,13 @@ int removeRecvHolder(arrayList *recvHolders, int index){
     recvHolder *tempRecvHolder;
     if((tempRecvHolder = getFromList(recvHolders,index))==NULL){
         printfRecvAll("Inexistent index provided to removeRecvQueue function!!\n");
-        exit(1);
+        return -1;
     }
     free(tempRecvHolder->recvQueue);
 
     //Remove recvHolder itself from recvHolders
     removeFromList(recvHolders,index);
+    return 0;
 }
 
 //Modification of send() syscall. Sends everything over unlike send()
@@ -1242,7 +1113,7 @@ int sendall(int s, unsigned char *buf, int len)
 {
     int total = 0;        // how many bytes we've sent
     int bytesleft = len; // how many we have left to send
-    int n;
+    int n = 0;
 
     while(total < len) {
         n = send(s, buf+total, bytesleft, 0);
@@ -1256,14 +1127,6 @@ int sendall(int s, unsigned char *buf, int len)
     return n==-1?-1:0; // return -1 on failure, 0 on success
 }
 
-//Sends a part of sessionId. Both communicating nodes are required to do this
-int sendPartOfSessionId(arrayList *connInfos, int socket){
-    //Generated new random number
-    uint32_t partOfSessionId;
-    getrandom(&partOfSessionId,4,0);
-
-
-}
 
 //Recieve part of sessionId. Both communicating nodes are required to do this
 // int recievePartOfSessionId(arrayList *connInfos, arrayList *recvHolders, int socket, unsigned char *processingBuffer){
@@ -1346,14 +1209,12 @@ int initializeSettingsData(globalSettingsStruct *globalSettings){
     //Analyze every line
 	while(fgets(temp,60,settingsFile)!=NULL){
 		currentCharacters = strcspn(temp,"\n");
-		char *settingPtr = temp;
-        char *settingName;
-        char *settingValue;
-        char *settingNameBegin;
-        char *valueNameBegin;
+        char *settingName = 0;
+        char *settingValue = 0;
+        char *settingNameBegin = 0;
         int settingsNamePassedFirstQuote = 0;
         int settingNameComplete = 0;
-        char *settingValueBegin;
+        char *settingValueBegin = 0;
         int settingValuePassedFirstQuote = 0;
         int settingValueComplete = 0;
 
@@ -1415,13 +1276,13 @@ int modifySetting(unsigned char *settingName, int settingLen, uint32_t newOption
 		perror("Failure generating temp settings file\n");
 		return -1;
 	}
-	unsigned char temp[80];
+	char temp[80];
 	int lastPos;
 	int currentCharacters;
-	unsigned char *settingPtr;
+	char *settingPtr;
 	char isSettingPtrComplete = 0;
-	uint32_t tempSettingLen;
-	int currentOption;
+	/* uint32_t tempSettingLen; */
+	/* int currentOption; */
     int optionFound = 0;
 	while(fgets(temp,60,settingsFile)!=NULL){
 		currentCharacters = strcspn(temp,"\n");
@@ -1430,10 +1291,10 @@ int modifySetting(unsigned char *settingName, int settingLen, uint32_t newOption
 		for(int i = 0; i<currentCharacters;i++){
 			if((*(temp+i)==' ' || *(temp+i)==':') && isSettingPtrComplete == 0 ){
 				//Completely got the setting name
-				tempSettingLen = i;
+				/* tempSettingLen = i; */
 				isSettingPtrComplete = 1;
 			}else if(isSettingPtrComplete==1 && (*(temp+i)!=' ' || *(temp+i)!=':')){
-				currentOption = atoi(temp+i);
+				/* currentOption = atoi(temp+i); */
 				isSettingPtrComplete = 0;
 				break;
 			}
@@ -1467,6 +1328,8 @@ int modifySetting(unsigned char *settingName, int settingLen, uint32_t newOption
 
 	fclose(settingsFile);
 	fclose(tempSettingsFile);
+
+    return 0;
 }
 
 
