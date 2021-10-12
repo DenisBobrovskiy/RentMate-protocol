@@ -160,4 +160,8 @@
     **Possible options:**  
     1) passExchangeMethod. Values: 0 - standard, 1 - ...
 
+* ### Node Lifecycle
+    * **Unconfigured device**: Before the device had any configuration done. It will be on loop listening for bluetooth connection from companion mobile app (TODO)
+    * **Configured device**: After device was configured over bluetooth(wifi ssid and password are known). It will attempt to connect to wifi
+
     

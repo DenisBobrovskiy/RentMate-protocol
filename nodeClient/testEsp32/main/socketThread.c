@@ -17,7 +17,7 @@
 #if targetPlatform==1
 #include "pckData/pckData.h"
 #include "pckData/generalSettings.h"
-#elif
+#elif targetPlatform==0
 #include "pckData.h"
 #include "generalSettings.h"
 #endif
@@ -31,7 +31,7 @@ unsigned char sendProcessingBuffer[MAXMSGLEN];
 unsigned char recvProcessingBuffer[MAXMSGLEN];
 int yes = 1;
 int socketMain;
-char targetIP[INET_ADDRSTRLEN] = "127.0.0.1";
+char targetIP[INET_ADDRSTRLEN] = "192.168.4.4";
 uint16_t port = 3333;
 unsigned char pointerToKey[16] = "KeyKeyKeyKey1234";
 struct sockaddr_in newConnAddr;
@@ -128,25 +128,6 @@ void *socketThread(void *args){
         }else {
             //Connection not established, do nothing
         }
-        //while(1){
-        //    //Here we should have established the sessionID so process the send queue
-
-
-
-        //    //Send a test message
-        //    // unsigned char *pckDataEncrypted;
-        //    // unsigned char *pckDataAdd;
-        //    // composeBeaconPacket((unsigned char*)"Test beacon",12,&pckDataEncrypted,&pckDataAdd);
-
-
-        //    // uint32_t pckDataLen = *(uint32_t*)pckDataEncrypted;
-        //    // print2("Add pck data to be added to message:",pckDataAdd,28,0);
-        //    // // sleep_ms(500);
-        //    // encryptAndSendAll(socketMain,0,&connInfo,&encryptionContext,pckDataEncrypted,pckDataAdd,NULL,0,sendProcessingBuffer);
-        //    // printf2("Msg sent\n");
-
-        //    sleep_ms(1000); //Imitate deep sleep on ESP32
-        //}
 
         //Close connection
         if(!connectionClosedByServer){

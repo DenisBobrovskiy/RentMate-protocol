@@ -13,6 +13,7 @@
 #include <signal.h>
 #include <string.h>
 #include "compileFlag.h"
+#include "client.h"
 
 #if targetPlatform==2
 #include "aes-gcm.h"
@@ -41,9 +42,27 @@
 #define ANSI_COLOR_BLUE  "\x1B[34m"
 #define ANSI_COLOR_WHITE  "\x1B[37m"
 
-#ifdef BOOM
-ferf
-#endif
+//WIFI DATA
+#define networkSSID "testbench"
+#define networkPassword "testbenchPassword"
+#define wifiMaximumReconnectAttempts  5
+
+/* FreeRTOS event group to signal when we are connected*/
+static EventGroupHandle_t s_wifi_event_group;
+
+/* The event group allows multiple bits for each event, but we only care about two events:
+ * - we are connected to the AP with an IP
+ * - we failed to connect after the maximum amount of retries */
+#define WIFI_CONNECTED_BIT BIT0
+#define WIFI_FAIL_BIT      BIT1
+
+static const char *TAG = "wifi station";
+
+static int s_retry_num = 0;
+
+
+
+
 char *nodeSettingsFileName = "nodeSettings.conf";
 nodeSettings_t localNodeSettings;
 globalSettingsStruct globalSettings;
@@ -60,16 +79,17 @@ pthread_mutex_t commandQueueAccessMux;
 uint32_t sizeOfSerializedCmdInfo = 0;
 
 
-int main(){
+int app_main(){
 
-    #if targetPlatform==1
-    //LOAD IN THE settings.conf FILE and set the devId, devtype etc...
-    loadInNodeSettings();
+    //Main init function for all platforms
+    initClient();
+
+    memcpy(localNodeSettings.devId,"TestTestTest1234",DEVIDLEN);
+
+    //Initialize wifi stack for esp32
+    #if targetPlatform==2
+    initWifiStationMode();
     #endif
-
-    initBasicClientData(&recvHolders,&globalSettings, localNodeSettings.devType);
-    initializeClient(); //Local function
-
     //Initialize node command queue
     pthread_mutex_init(&commandQueueAccessMux,NULL);
     initializeCommandQueue(&nodeCommandsQueue);
@@ -114,7 +134,129 @@ int main(){
     pthread_create(&socketThreadID,NULL,socketThread,NULL);
     pthread_join(socketThreadID,NULL);
 
+    return 0;
+
 }
+
+void initClient(){
+    #if targetPlatform==1
+    printf2("Initializing linux client");
+    #elif targetPlatform==2
+    printf2("Initializing esp32 client");
+    //INIT NVS (storage)
+    esp_err_t ret = nvs_flash_init();
+    if (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND) {
+      ESP_ERROR_CHECK(nvs_flash_erase());
+      ret = nvs_flash_init();
+    }
+    ESP_ERROR_CHECK(ret);
+
+    //Initialize wifi stack for esp32
+    initWifiStationMode();
+
+    #endif
+
+    //Load in settings
+    loadInNodeSettings();
+    initBasicClientData(&recvHolders,&globalSettings, localNodeSettings.devType);
+    sizeOfSerializedCmdInfo = DEVIDLEN+4+4+4+sizeof(unsigned char*);
+}
+
+
+
+void initWifiStationMode(void)
+{
+    s_wifi_event_group = xEventGroupCreate();
+
+    ESP_ERROR_CHECK(esp_netif_init());
+
+    ESP_ERROR_CHECK(esp_event_loop_create_default());
+    esp_netif_create_default_wifi_sta();
+
+    wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
+    ESP_ERROR_CHECK(esp_wifi_init(&cfg));
+
+    esp_event_handler_instance_t instance_any_id;
+    esp_event_handler_instance_t instance_got_ip;
+    ESP_ERROR_CHECK(esp_event_handler_instance_register(WIFI_EVENT,
+                                                        ESP_EVENT_ANY_ID,
+                                                        &wifiEventHandler,
+                                                        NULL,
+                                                        &instance_any_id));
+    ESP_ERROR_CHECK(esp_event_handler_instance_register(IP_EVENT,
+                                                        IP_EVENT_STA_GOT_IP,
+                                                        &wifiEventHandler,
+                                                        NULL,
+                                                        &instance_got_ip));
+
+    wifi_config_t wifi_config = {
+        .sta = {
+            .ssid = networkSSID,
+            .password = networkPassword,
+            /* Setting a password implies station will connect to all security modes including WEP/WPA.
+             * However these modes are deprecated and not advisable to be used. Incase your Access point
+             * doesn't support WPA2, these mode can be enabled by commenting below line */
+	     .threshold.authmode = WIFI_AUTH_WPA2_PSK,
+
+            .pmf_cfg = {
+                .capable = true,
+                .required = false
+            },
+        },
+    };
+    ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA) );
+    ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &wifi_config) );
+    ESP_ERROR_CHECK(esp_wifi_start() );
+
+    ESP_LOGI(TAG, "wifi_init_sta finished.");
+
+    /* Waiting until either the connection is established (WIFI_CONNECTED_BIT) or connection failed for the maximum
+     * number of re-tries (WIFI_FAIL_BIT). The bits are set by event_handler() (see above) */
+    EventBits_t bits = xEventGroupWaitBits(s_wifi_event_group,
+            WIFI_CONNECTED_BIT | WIFI_FAIL_BIT,
+            pdFALSE,
+            pdFALSE,
+            portMAX_DELAY);
+
+    /* xEventGroupWaitBits() returns the bits before the call returned, hence we can test which event actually
+     * happened. */
+    if (bits & WIFI_CONNECTED_BIT) {
+        ESP_LOGI(TAG, "connected to ap SSID:%s password:%s",
+                 networkSSID, networkPassword);
+    } else if (bits & WIFI_FAIL_BIT) {
+        ESP_LOGI(TAG, "Failed to connect to SSID:%s, password:%s",
+                 networkSSID, networkPassword);
+    } else {
+        ESP_LOGE(TAG, "UNEXPECTED EVENT");
+    }
+
+    /* The event will not be processed after unregister */
+    ESP_ERROR_CHECK(esp_event_handler_instance_unregister(IP_EVENT, IP_EVENT_STA_GOT_IP, instance_got_ip));
+    ESP_ERROR_CHECK(esp_event_handler_instance_unregister(WIFI_EVENT, ESP_EVENT_ANY_ID, instance_any_id));
+    vEventGroupDelete(s_wifi_event_group);
+}
+
+static void wifiEventHandler(void* arg, esp_event_base_t event_base, int32_t event_id, void* event_data)
+{
+    if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_START) {
+        esp_wifi_connect();
+    } else if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_DISCONNECTED) {
+        if (s_retry_num < wifiMaximumReconnectAttempts) {
+            esp_wifi_connect();
+            s_retry_num++;
+            ESP_LOGI(TAG, "retry to connect to the AP");
+        } else {
+            xEventGroupSetBits(s_wifi_event_group, WIFI_FAIL_BIT);
+        }
+        ESP_LOGI(TAG,"connect to the AP fail");
+    } else if (event_base == IP_EVENT && event_id == IP_EVENT_STA_GOT_IP) {
+        ip_event_got_ip_t* event = (ip_event_got_ip_t*) event_data;
+        ESP_LOGI(TAG, "got ip:" IPSTR, IP2STR(&event->ip_info.ip));
+        s_retry_num = 0;
+        xEventGroupSetBits(s_wifi_event_group, WIFI_CONNECTED_BIT);
+    }
+}
+
 
 void initializeClient(){
     sizeOfSerializedCmdInfo = DEVIDLEN+4+4+4+sizeof(unsigned char*);
@@ -162,7 +304,6 @@ int composeNodeMessage(nodeCmdInfo *currentNodeCmdInfo, unsigned char **pckDataE
     printPckData(NULL,*pckDataAdd,false,0);
 
     
-    uint32_t pckDataLen = *(uint32_t*)pckDataEncrypted;
     // printf2("pointer: %p\n",pckDataEncrypted);
     // printf2("BOOOOM: %d\n",pckDataLen);
     // pckDataToNetworkOrder(pckDataAdd);
@@ -202,6 +343,8 @@ int freeNodeCmdInfo(nodeCmdInfo *cmdInfo){
 
 int loadInNodeSettings(){
     //Open the file
+
+    #if targetPlatform==1
     FILE *settingsFile;
 	char temp[60];
 	int currentCharacters;
@@ -215,14 +358,12 @@ int loadInNodeSettings(){
     //Analyze every line
 	while(fgets(temp,60,settingsFile)!=NULL){
 		currentCharacters = strcspn(temp,"\n");
-		char *settingPtr = temp;
-        char *settingName;
-        char *settingValue;
-        char *settingNameBegin;
-        char *valueNameBegin;
+        char *settingName = 0;
+        char *settingValue = 0;
+        char *settingNameBegin = 0;
         int settingsNamePassedFirstQuote = 0;
         int settingNameComplete = 0;
-        char *settingValueBegin;
+        char *settingValueBegin = 0;
         int settingValuePassedFirstQuote = 0;
         int settingValueComplete = 0;
 
@@ -271,6 +412,11 @@ int loadInNodeSettings(){
         free(settingValue);
     }
     return 1;
+    #elif targetPlatform==2
+    printf2("Opening node settings file using esp32's filesystem");
+
+    return 1;
+    #endif
 }
 
 int initializeConnInfo(connInfo_t *connInfo, int socket){
@@ -321,10 +467,14 @@ int getCommandQueueLength(arrayList *commandQueue){
 
 void sleep_ms(int millis){
     //printf("Sleeping for %i ms\n",millis);
+    #if targetPlatform==1
     struct timespec ts;
     ts.tv_sec = millis/1000;
     ts.tv_nsec = (millis%1000) * 1000000;
     nanosleep(&ts, NULL);
+    #elif targetPlatform==2
+    vTaskDelay(millis/portTICK_RATE_MS);
+    #endif
 }
 
 //The output structure should have size as variable: sizeOfSerializedCmdInfo.

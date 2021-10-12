@@ -83,6 +83,10 @@ the sessionId's dont get messed up.
 #define ANSI_COLOR_BACKGROUND_MESSAGE8 "\e[40;48;5;239m" //protocol encrypted data color
 #define ANSI_COLOR_BACKGROUND_MESSAGE9 "\e[40;48;5;124m" //encrypted section color (if it is fully encrypted)
 
+static int initPckDataInfoBasic(arrayList *recvHolders, uint32_t devType);
+static int deinitPckDataInfoBasic(arrayList *recvHolders);
+static int printfRecvAll(char *formattedInput, ...);
+
 
 
 

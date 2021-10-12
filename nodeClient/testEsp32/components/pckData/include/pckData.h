@@ -147,8 +147,6 @@ unsigned char* getPointerToUserAddData(unsigned char *msgPtr);
 uint32_t getNonceFromDecryptedData(unsigned char *decryptedDataPtr);
 uint32_t getPckGSettingsFromDecryptedData(unsigned char *decryptedDataPtr);
 
-static int initPckDataInfoBasic(arrayList *recvHolders, uint32_t devType);
-static int deinitPckDataInfoBasic(arrayList *recvHolders);
 
 int initBasicClientData(arrayList *recvHolders,
         globalSettingsStruct *globalSettings,
@@ -192,6 +190,5 @@ int removeConnInfo(arrayList *connInfos, int socket);
 
 void printMessage(char *labelMsg, unsigned char *data, int datatype, bool isEncrypted, bool isSerialized);
 void printPckData(char *label, unsigned char *pckData, int isSerialized, int colorscheme);
-static int printfRecvAll(char *formattedInput, ...);
 
 #endif
