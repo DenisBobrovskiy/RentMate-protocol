@@ -4,13 +4,13 @@
 
 #include "generalSettings.h"
 
-#if libraryVersion==1
+#if targetPlatform==2
 #include "aes-gcm.h"
 #include "arrayList.h"
 #include "mbedtls/gcm.h"
 #include "lwip/sockets.h"
 #include "lwip/inet.h"
-#elif libraryVersion==0
+#elif targetPlatform==1
 #include "AES-GCM/aes-gcm.h"
 #include "ArrayList/arrayList.h"
 #include "mbedtls/include/mbedtls/gcm.h"
@@ -190,5 +190,6 @@ int removeConnInfo(arrayList *connInfos, int socket);
 
 void printMessage(char *labelMsg, unsigned char *data, int datatype, bool isEncrypted, bool isSerialized);
 void printPckData(char *label, unsigned char *pckData, int isSerialized, int colorscheme);
+void reboot(int exitCode);
 
 #endif

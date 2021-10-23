@@ -15,6 +15,7 @@
 #define LANConnectionsPort 4444
 #define WanControlSocketPort 23875
 #define NodeRecievePort 5555  //Port for recieving messages from the server on the node
+#define BroadcastPort 6666
 
 //Networking
 #define maxConcurentConnectionsToNodeSocket 100  //Max concurent connections to main device Control Socket

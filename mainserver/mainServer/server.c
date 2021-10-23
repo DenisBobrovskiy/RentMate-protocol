@@ -25,6 +25,7 @@
 #include "pckData/generalSettings.h"
 #include "server.h"
 #include "epollRecievingThread.h"
+#include "broadcastThread.h"
 
 #define ANSI_COLOR_GREEN "\x1b[32m"
 #define ANSI_COLOR_BLUE  "\x1B[34m"
@@ -32,7 +33,7 @@
 
 
 //MULTITHREADING
-pthread_t epollRecievingThreadID; //Thread that listens for node and user commands
+pthread_t epollRecievingThreadID, broadcastThreadID; //Thread that listens for node and user commands
 
 
 arrayList connectionsInfo;  //Store info for every connection to server
@@ -83,8 +84,10 @@ int main(void){
     addToCommandQueue("TestTestTest1234",&testCommand);
 
 
+    pthread_create(&broadcastThreadID,NULL,broadcastThread,NULL);
     pthread_create(&epollRecievingThreadID,NULL,epollRecievingThread,NULL);
     pthread_join(epollRecievingThreadID,NULL);
+    pthread_join(broadcastThreadID,NULL);
 }
 
 void initServer(){

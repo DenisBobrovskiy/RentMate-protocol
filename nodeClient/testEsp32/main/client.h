@@ -19,6 +19,7 @@
 #include "pckData.h"
 #include "lwip/err.h"
 #include "lwip/sys.h"
+#include "esp_spiffs.h"
 #endif
 
 
@@ -46,10 +47,9 @@ extern nodeSettings_t localNodeSettings;
 
 
 void initClient();
+void initStorage();
 void initWifiStationMode(void);
 static void wifiEventHandler(void* arg, esp_event_base_t event_base, int32_t event_id, void* event_data);
-
-void initializeClient();
 
 int composeNodeMessage(nodeCmdInfo *currentNodeCmdInfo, unsigned char **pckDataEncrypted, unsigned char **pckDataAdd);
 int freeNodeCmdInfo(nodeCmdInfo *cmdInfo);
