@@ -37,6 +37,8 @@
 #include "pckData.h"
 #include "lwip/err.h"
 #include "lwip/sys.h"
+#include "esp_pthread.h"
+#include "esp_heap_trace.h"
 #endif
 
 #define ANSI_COLOR_BLUE "\x1B[34m"
@@ -55,6 +57,7 @@ static EventGroupHandle_t s_wifi_event_group;
  * - we failed to connect after the maximum amount of retries */
 #define WIFI_CONNECTED_BIT BIT0
 #define WIFI_FAIL_BIT BIT1
+
 
 static const char *TAG = "wifi station";
 

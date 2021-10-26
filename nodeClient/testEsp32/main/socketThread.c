@@ -116,6 +116,12 @@ void *socketThread(void *args)
                     printf2("Recieved broadcast from main controller!\n");
                     //Now get the remote ip and save it to use to connect later
                     struct in_addr ipAddr = broadcastSourceAddr.sin_addr;
+                    char ipAddrStr[INET_ADDRSTRLEN];
+                    inet_ntop(AF_INET,&ipAddr,ipAddrStr,INET_ADDRSTRLEN);
+                    printf2("Main controller ip: %s\n",ipAddrStr);
+                    memcpy(mainControllerIp,ipAddrStr,INET_ADDRSTRLEN);
+                    break;
+
                 }
 
 
@@ -127,7 +133,7 @@ void *socketThread(void *args)
         initializeSocket();
         if (connect(socketMain, (struct sockaddr *)&newConnAddr, sockLen) == -1)
         {
-            printf2("Connection failed\n");
+            // printf2("Connection failed\n");
         }
         FD_ZERO(&fdsetMain);
         FD_SET(socketMain, &fdsetMain);
