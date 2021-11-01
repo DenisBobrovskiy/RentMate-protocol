@@ -15,7 +15,7 @@ gdb.exe: obj
 
 #NORMAL BUILD
 client.exe: obj
-	gcc $(INC) $(LIBDIR) -o client.exe *.o $(LIBS) && cp ./client.c ./client.h ./socketThread.c ./socketThread.h ../testEsp32/main/
+	gcc $(INC) $(LIBDIR) -o client.exe *.o $(LIBS) 
 
 obj: client.c
 	gcc $(INC) $(LIBDIR) -c *.c $(LIBS)
