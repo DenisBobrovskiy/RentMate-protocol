@@ -45,11 +45,18 @@ extern mbedtls_gcm_context encryptionContext;
 extern arrayList recvHolders;
 extern nodeSettings_t localNodeSettings;
 
+//Linux client specific functions
+#if targetPlatform==1
+
+#elif targetPlatform==2
+//ESP32 specific functions
+void initWifiStationMode(void);
+static void wifiEventHandler(void* arg, esp_event_base_t event_base, int32_t event_id, void* event_data);
+#endif
+
 
 void initClient();
 void initStorage();
-void initWifiStationMode(void);
-static void wifiEventHandler(void* arg, esp_event_base_t event_base, int32_t event_id, void* event_data);
 
 int composeNodeMessage(nodeCmdInfo *currentNodeCmdInfo, unsigned char **pckDataEncrypted, unsigned char **pckDataAdd);
 int freeNodeCmdInfo(nodeCmdInfo *cmdInfo);

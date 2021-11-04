@@ -29,6 +29,39 @@ done
         echo "Incorrect input (need to pass every parameter!)";
         exit 1
     else
-        echo "Confirm?";
-        read userConfirmation
+        correctInputDirection=0;
+        correctInputProtocol=0;
+        correctInputClient=0;
+        if [ $direction == "clientToEsp" ] || [ $direction == "espToClient" ]
+        then
+            correctInputDirection=1;
+        fi
+        if [ $protocol == "0" ] || [ $protocol == "1" ]
+        then
+            correctInputProtocol=1;
+        fi
+        if [ $client == "0" ] || [ $client == "1" ]
+        then
+            correctInputClient=1;
+        fi
+        echo $correctInputDirection $correctInputProtocol $correctInputClient
+
+        if [ $correctInputDirection -eq 1 ] && [ $correctInputProtocol -eq 1 ] && [ $correctInputClient -eq 1 ]
+        then
+            #Execute the file transfer
+            echo "This will transfer the file in direction: $direction. Transferring the files(where 1 means files will be transferred, 0 means wont be transferred): client files: $client; protocol files: $protocol;"
+            echo "Type y to confirm that you want to start file transfer:"
+            read userConfirm
+            if [ $userConfirm == "y" ]
+            then
+                echo "Starting file transfer"
+                if [ $direction == "espToClient" ]
+            else
+                echo "Not confirmed, aborting script"
+                exit 1
+            fi
+        else
+            echo "Wrong input!"
+        fi
+
     fi

@@ -49,25 +49,28 @@
 #define networkPassword "testbenchPassword"
 #define wifiMaximumReconnectAttempts 100
 
+
+#if targetPlatform == 1
+char *nodeSettingsFileName = "nodeSettings.conf";
+#elif targetPlatform == 2
+
+//WIFI SETTINGS for esp32
 /* FreeRTOS event group to signal when we are connected*/
 static EventGroupHandle_t s_wifi_event_group;
-
 /* The event group allows multiple bits for each event, but we only care about two events:
  * - we are connected to the AP with an IP
  * - we failed to connect after the maximum amount of retries */
 #define WIFI_CONNECTED_BIT BIT0
 #define WIFI_FAIL_BIT BIT1
-
-
 static const char *TAG = "wifi station";
-
 static int s_retry_num = 0;
 
-#if targetPlatform == 1
-char *nodeSettingsFileName = "nodeSettings.conf";
-#elif targetPlatform == 2
+//Configuration file settings
 char *nodeSettingsFileName = "/spiffs/nodeSettings.conf";
+
 #endif
+
+
 nodeSettings_t localNodeSettings;
 globalSettingsStruct globalSettings;
 // connInfo_t connInfo;
@@ -117,17 +120,19 @@ void initClient()
     //Initialize storage filesystems
     initStorage();
     //Initialize wifi stack for esp32
+    initWifiStationMode();
 
 #endif
     //Platform agnostic init functions
 
     //Load in settings
-    initWifiStationMode();
     // loadInNodeSettings();
     initBasicClientData(&recvHolders, &globalSettings, localNodeSettings.devType);
     sizeOfSerializedCmdInfo = DEVIDLEN + 4 + 4 + 4 + sizeof(unsigned char *);
 }
 
+//ESP 32 specific functions
+#if targetPlatform==2
 //Inits NVS and SPIFFS
 void initStorage()
 {
@@ -311,6 +316,8 @@ int processMsg(connInfo_t *connInfo, unsigned char *message)
         return 1;
     }
 }
+
+#endif
 
 //Composes a generic message (not fully formatted for the protocol, use pckData functions to complete the  message) use this for functions that compose different message types with different arguments
 int composeNodeMessage(nodeCmdInfo *currentNodeCmdInfo, unsigned char **pckDataEncrypted, unsigned char **pckDataAdd)
@@ -557,3 +564,6 @@ static int printf2(char *formattedInput, ...)
     va_end(args);
     return result;
 }
+
+
+

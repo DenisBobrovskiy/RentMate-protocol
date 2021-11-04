@@ -4,7 +4,7 @@
 
 #if targetPlatform==1
 #include "pckData/pckData.h"
-#elif targetPlatform==0
+#elif 
 #include "pckData.h"
 #endif
 

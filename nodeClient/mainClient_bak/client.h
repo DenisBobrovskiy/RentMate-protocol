@@ -8,18 +8,6 @@
 #include "pckData/pckData.h"
 #elif targetPlatform==2
 #include "pckData.h"
-#include "freertos/FreeRTOS.h"
-#include "freertos/task.h"
-#include "freertos/event_groups.h"
-#include "esp_system.h"
-#include "esp_wifi.h"
-#include "esp_event.h"
-#include "esp_log.h"
-#include "nvs_flash.h"
-#include "pckData.h"
-#include "lwip/err.h"
-#include "lwip/sys.h"
-#include "esp_spiffs.h"
 #endif
 
 
@@ -45,18 +33,8 @@ extern mbedtls_gcm_context encryptionContext;
 extern arrayList recvHolders;
 extern nodeSettings_t localNodeSettings;
 
-//Linux client specific functions
-#if targetPlatform==1
 
-#elif targetPlatform==2
-//ESP32 specific functions
-void initWifiStationMode(void);
-static void wifiEventHandler(void* arg, esp_event_base_t event_base, int32_t event_id, void* event_data);
-#endif
-
-
-void initClient();
-void initStorage();
+void initializeClient();
 
 int composeNodeMessage(nodeCmdInfo *currentNodeCmdInfo, unsigned char **pckDataEncrypted, unsigned char **pckDataAdd);
 int freeNodeCmdInfo(nodeCmdInfo *cmdInfo);
