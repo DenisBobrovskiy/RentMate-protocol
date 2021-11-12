@@ -176,9 +176,23 @@ int processMsg(connInfo_t *connInfo, unsigned char *message)
         //No connInfo, hence assume this is a diffie helmann reply from the server
         printf2("Recieved diffie helmann public key from server\n");
         uint8_t publicDHKeyRemote[ECC_PUB_KEY_SIZE];
+        uint8_t sharedDHKey[ECC_PUB_KEY_SIZE];
+
+        //Get the remote public key from message
         pckDataToHostOrder(extraDataPckPtr);
-        getElementFromPckData(addPckDataPtr,publicDHKeyRemote,ECC_PUB_KEY_SIZE);
+        getElementFromPckData(extraDataPckPtr,publicDHKeyRemote,0);
+        pckDataToNetworkOrder(extraDataPckPtr);
+
+        //Generate shared key
+        ecdh_shared_secret(privateDHKeyBuffer,publicDHKeyRemote,sharedDHKey);
+        print2("Shared DH Key: ",sharedDHKey,ECC_PUB_KEY_SIZE,0);
+
+        //Save the key to be used for encryption
+
+        return 0;
     }
+
+
     decryptPckData(&encryptionContext, message, decryptionBuffer);
 
     //Since before any communication the client sends a beacon packet to server. If we get a message and sessionID is yet to be established it means the server sent its part of the sessionID.
