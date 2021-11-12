@@ -23,6 +23,7 @@
 #define MAXEVENTS 255
 
 void *epollRecievingThread(void *args){
+
     printf2("epollRecievingThread started\n");
     //Defines 2 sockets to accept connections.
     //One for node connections on port - NodeConnectionsPort(generalSettings.h)

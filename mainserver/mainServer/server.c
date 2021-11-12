@@ -26,6 +26,7 @@
 #include "server.h"
 #include "epollRecievingThread.h"
 #include "broadcastThread.h"
+#include "tinyECDH/ecdh.h"
 
 #define ANSI_COLOR_GREEN "\x1b[32m"
 #define ANSI_COLOR_BLUE  "\x1B[34m"
@@ -69,12 +70,10 @@ int main(void){
     initServer();
 
     //Test stuff
-
-    // unsigned char testDevId[DEVIDLEN] = "TestTestTest1234";
-    devInfo testDevInfo;
-    memcpy(testDevInfo.devId,"TestTestTest1234",DEVIDLEN);
-    memcpy(testDevInfo.key,"KeyKeyKeyKey1234",KEYLEN);
-    addToList(&devInfos,testDevInfo.devId);
+    /* devInfo testDevInfo; */
+    /* memcpy(testDevInfo.devId,"TestTestTest1234",DEVIDLEN); */
+    /* memcpy(testDevInfo.key,"KeyKeyKeyKey1234",KEYLEN); */
+    /* addToList(&devInfos,testDevInfo.devId); */
 
     commandRequestCommand_t testCommand;
     testCommand.opCode = 69; //poweroff the node
@@ -138,40 +137,72 @@ int processMsg(connInfo_t *connInfo, unsigned char *msg)
         printf2("Processing a node message...\n");
         unsigned char devIdFromMessage[DEVIDLEN];
 
-        devInfo *devInfo;
+        devInfo *devInfoRef;
         pckDataToHostOrder(addPckDataPtr);
         if(getElementFromPckData(addPckDataPtr,devIdFromMessage,0)==-1){
             printf2("DEVID not present in ADD data, so ignore this message, since without DEVID we cant decrypt\n");
             return -1;
         }
         pckDataToNetworkOrder(addPckDataPtr);
-        printf2("BOOM\n");
 
         // print2("DEVID FROM ADD DATA",devIdFromMessage,DEVIDLEN,0);
 
 
+        int deviceInfoFound = 0;
         for(int i = 0; i < devInfos.length; i ++){
-            devInfo = getFromList(&devInfos,i);
+            devInfoRef = getFromList(&devInfos,i);
             // printf("DEVINFO FOUND: %s\n",newDevInfo->devId);
             // printf("DEVINFO SENT: %s\n",devId);
-            if(memcmp(devInfo->devId,devIdFromMessage,DEVIDLEN)==0){
+            if(memcmp(devInfoRef->devId,devIdFromMessage,DEVIDLEN)==0){
                 //Found the devID! Get key and dev type
+                deviceInfoFound = 1;
                 break; //So that the devInfo entry remains assigned
                 // printf2("Found corresponding DEVID for the recieved message. Obtained corresponding decryption key\n");
-            }else{
-                printf2("No device with corresponding DEVID is known to server... Discard message\n");
-                return -1;
             }
         }
-        if(devInfos.length == 0){
-            printf2("No device infos available. Cant decrypt, ignoring this message\n");
-            return -1;
+        if(deviceInfoFound==0){
+                printf2("No device with corresponding DEVID is known to server... Attempting to extract diffie helmann password and set up the encryption key\n");
+
+                devInfo newDevInfo;
+                memcpy(newDevInfo.devId,devIdFromMessage,DEVIDLEN);
+                addToList(&devInfos,&newDevInfo);
+                devInfoRef = &newDevInfo;
+
+                //Get the key sent from node
+                uint8_t privateDHKey[ECC_PRV_KEY_SIZE];
+                uint8_t publicDHKeyLocal[ECC_PUB_KEY_SIZE];
+                uint8_t publicDHKeyRemote[ECC_PUB_KEY_SIZE];
+                uint8_t sharedDHKey[ECC_PUB_KEY_SIZE];
+                pckDataToHostOrder(extraDataPtr);
+                getElementFromPckData(extraDataPckPtr,publicDHKeyRemote,0);
+                pckDataToNetworkOrder(extraDataPckPtr);
+                print2("Public DH Key recieved: ",publicDHKeyRemote,ECC_PUB_KEY_SIZE,0);
+
+                //Generate public/private DH Keys, send off the public one to node
+                getrandom(privateDHKey,ECC_PRV_KEY_SIZE,0);
+                ecdh_generate_keys(publicDHKeyLocal,privateDHKey);
+
+                //Generate shared secret Key
+                ecdh_shared_secret(privateDHKey,publicDHKeyRemote,sharedDHKey);
+                print2("Generated shared key: ",sharedDHKey,ECC_PUB_KEY_SIZE,0);
+
+                //Send off local public key
+                unsigned char *addPckDataToSend;
+                initPckData(&addPckDataToSend);
+                appendToPckData(&addPckDataToSend,publicDHKeyLocal,ECC_PUB_KEY_SIZE);
+                encryptAndSendAll(connInfo->socket,0,NULL,NULL,NULL,NULL,addPckDataToSend,0,sendProcessingBuffer);
+                return 0;
+                    
+
+
         }
 
-        printf2("Message's DEVID: %.16s, KEY: %.16s\n",devInfo->devId,devInfo->key);
+
+        printf2("Message's DEVID: %.16s, KEY: %.16s\n",devInfoRef->devId,devInfoRef->key);
+
 
         //Decrypt the message
-        initGCM(&gcmCtx,devInfo->key,KEYLEN*8);
+        initGCM(&gcmCtx,devInfoRef->key,KEYLEN*8);
         if(decryptPckData(&gcmCtx,msg,decryptedMsgBuffer)!=0){
             //Failed decryption (Could be spoofed ADD (DevId for instance) or something else, discard the message)
             printf2("Failed decrypting the message. Ignoring this message\n");
@@ -211,7 +242,7 @@ int processMsg(connInfo_t *connInfo, unsigned char *msg)
             printf2(ANSI_COLOR_BLUE "SessionID established. SessionID: %u\n" ANSI_COLOR_RESET,connInfo->sessionId);
 
             //NOW SEND OFF ANY MESSAGES IN THE QUEUE
-            sendQueuedMessages(connInfo,devInfo);
+            sendQueuedMessages(connInfo,devInfoRef);
             printf2("Closing the connection\n");
             close1(connInfo->socket,&connectionsInfo);
 
@@ -227,7 +258,7 @@ int processMsg(connInfo_t *connInfo, unsigned char *msg)
             printf2("Nonce local: %d; Nonce remote: %d; Generated sessionID: %d\n", connInfo->localNonce, connInfo->remoteNonce, connInfo->sessionId);
 
             //NOW SEND OFF ANY MESSAGES IN THE QUEUE
-            sendQueuedMessages(connInfo,devInfo);
+            sendQueuedMessages(connInfo,devInfoRef);
             printf2("Closing the connection\n");
             close1(connInfo->socket,&connectionsInfo);
 

@@ -9,6 +9,11 @@
 # -p: protocol (transfer protocol files or not): 1(for yes, to transfer protocol files), 0 (for no, wont transfer protocol files)
 # -c: client (transfer cleint files or not): 1(for yes, to transfer client files), 0 (for no, wont transfer protocol files)
 
+espClientDirectory="./nodeClient/testEsp32/main/"
+espArrayListDirectory="./nodeClient/testEsp32/components/ArrayList/"
+espPckDataDirectory="./nodeClient/testEsp32/components/pckData/"
+
+
 while getopts d:p:c: flag
 do
     case "${flag}" in
@@ -56,6 +61,8 @@ done
             then
                 echo "Starting file transfer"
                 if [ $direction == "espToClient" ]
+                then
+
             else
                 echo "Not confirmed, aborting script"
                 exit 1

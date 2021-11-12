@@ -16,6 +16,7 @@
 #if targetPlatform == 1
 #include "pckData/pckData.h"
 #include "pckData/generalSettings.h"
+#include "tinyECDH/ecdh.h"
 #elif targetPlatform == 2
 #include "pckData.h"
 #include "generalSettings.h"
@@ -45,12 +46,16 @@ char broadcastMessageExpected[16] = "BroadcastV100000";
 struct sockaddr_in newConnAddr;
 socklen_t sockLen;
 
-void initializeSocket()
+int initializeSocket()
 {
     connectionTimeout.tv_sec = connectionTimeoutSeconds;
     connectionTimeout.tv_usec = 0;
-    initGCM(&encryptionContext, pointerToKey, KEYLEN * 8);
-    //INITIALIZING AND CONNECTING
+
+    //Use this to initialize decryption key from node settings file (assuming the key has been previously established)
+    /* initGCM(&encryptionContext, pointerToKey, KEYLEN * 8); */
+    /* hasEncryptionContextBeenEstablished = 1; */
+
+    //INITIALIZING SOCKET AND CONNECTING
     printf2("Initializing the socket\n");
     socketMain = socket(AF_INET, SOCK_STREAM, 0);
     initializeConnInfo(&connInfo, socketMain);
@@ -59,7 +64,12 @@ void initializeSocket()
     newConnAddr.sin_family = AF_INET;
     newConnAddr.sin_port = htons(port);
     sockLen = sizeof(newConnAddr);
-    fcntl(socketMain, F_SETFL, O_NONBLOCK);
+    if(fcntl(socketMain, F_SETFL, O_NONBLOCK)==-1){
+        //Error setting socket non-blocking
+        perror("Error setting socket non-blocking: ");
+        return -1;
+    }
+    return 0;
 }
 
 void *socketThread(void *args)
@@ -118,13 +128,16 @@ void *socketThread(void *args)
                     struct in_addr ipAddr = broadcastSourceAddr.sin_addr;
                     char ipAddrStr[INET_ADDRSTRLEN];
                     inet_ntop(AF_INET,&ipAddr,ipAddrStr,INET_ADDRSTRLEN);
-                    printf2("Main controller ip: %s\n",ipAddrStr);
                     memcpy(mainControllerIp,ipAddrStr,INET_ADDRSTRLEN);
+#if localPlatform==1
+                    //The server is on same device as this one, so just set ip to 127.0.0.1
+                    printf2("LOCAL PLATFORM\n");
+                    char localIp[INET_ADDRSTRLEN] = "127.0.0.1";
+                    memcpy(mainControllerIp,localIp,INET_ADDRSTRLEN);
+#endif
+                    printf2("Main controller ip: %s\n",mainControllerIp);
                     break;
-
                 }
-
-
                 memset(broadcastMessageBuffer, 0, sizeof(broadcastMessageBuffer));
             }
         }
@@ -145,6 +158,8 @@ void *socketThread(void *args)
             socklen_t len = sizeof(so_error);
             printf2("Running select()\n");
             getsockopt(socketMain, SOL_SOCKET, SO_ERROR, &so_error, &len);
+            perror("Error: ");
+            printf2("so error: %d\n",so_error);
             if (so_error == 0)
             {
                 //Socket connected
@@ -152,88 +167,119 @@ void *socketThread(void *args)
                 hasConnected = 1;
             }
         }
+        //After accepted connection, set socket to blocking again (Because it doesnt need to be non-blocking to have a timeout, unlike for connection call, where we need to use non-blocking socket with select to have a connection attempt timeout)
+        int opts = opts = opts & (~O_NONBLOCK);
+        if(fcntl(socketMain,F_SETFL,opts)==-1){
+            //Error resetting socket back to blocking mode
+            perror("Eror resetting socket back to blocking mode: ");
+        }
 
         if (hasConnected == 1)
         {
-            //Establish sessionID
-            if (connInfo.localNonce == 0)
-            {
-                //Generate a localNonce
-                unsigned char *encryptedPckData = NULL;
+            //Figure out if the encryption key has been established
+            if(hasEncryptionContextBeenEstablished==0){
+                //Key not established
+                printf2("Encryption key hasnt been exchanged yet. Starting diffie helmann key exchange with the server\n");
+                //Send the message, unencrypted, where extra data will contain the key for diffie helmann
+                printf2("ECC_PRV_KEY_SIZE: %d\n",ECC_PRV_KEY_SIZE);
+                getrandom(privateDHKeyBuffer,ECC_PRV_KEY_SIZE,0);
+                ecdh_generate_keys(publicDHKeyLocalBuffer,privateDHKeyBuffer);
+                unsigned char *extraDataPckData;
                 unsigned char *addPckData;
-                //For ADD pck data we need DEVID so we can identify which device we are talking to
                 initPckData(&addPckData);
                 appendToPckData(&addPckData, (unsigned char *)&(localNodeSettings.devId), DEVIDLEN);
-                unsigned char *extraPckData = NULL;
+                initPckData(&extraDataPckData);
+                appendToPckData(&extraDataPckData,publicDHKeyLocalBuffer,ECC_PUB_KEY_SIZE);
+                encryptAndSendAll(socketMain,0, NULL, NULL, NULL, addPckData, extraDataPckData, 0, sendProcessingBuffer);
 
-                if (encryptAndSendAll(socketMain, 0, &connInfo, &encryptionContext, encryptedPckData, addPckData, extraPckData, 0, sendProcessingBuffer) == -1)
-                {
-                    printf2("Failed sending the localNonce...\n");
-                }
+                //Wait to recv the reply containing the servers key to generate shared secret
+                recvAll(&recvHolders,NULL,socketMain,recvProcessingBuffer,processMsg);
+                printf2("Finished exchanging passwords using Diffie Helmann\n");
 
-                //Wait for remote nonce
-                while (connInfo.sessionId == 0)
+
+            }else if(hasEncryptionContextBeenEstablished==1){
+
+                //Establish sessionID
+                if (connInfo.localNonce == 0)
                 {
-                    printf2("Waiting\n");
-                    printf2("Waiting to establish sessionID\n");
-                    int status = recvAll(&recvHolders, &connInfo, socketMain, recvProcessingBuffer, processMsg);
-                    if (status == 0)
+                    //Generate a localNonce
+                    unsigned char *encryptedPckData = NULL;
+                    unsigned char *addPckData;
+                    //For ADD pck data we need DEVID so we can identify which device we are talking to
+                    initPckData(&addPckData);
+                    appendToPckData(&addPckData, (unsigned char *)&(localNodeSettings.devId), DEVIDLEN);
+                    unsigned char *extraPckData = NULL;
+
+                    if (encryptAndSendAll(socketMain, 0, &connInfo, &encryptionContext, encryptedPckData, addPckData, extraPckData, 0, sendProcessingBuffer) == -1)
                     {
-                        //Connection was closed
-                        /* printf2("Connection closed by server\n"); */
-                        /* close(socketMain); */
-                        /* connectionClosedByServer = true; */
-                        //NOT CLOSED IT JUST GETS 0 BYTES AT THE END OF THE LOOP
-                        break;
+                        printf2("Failed sending the localNonce...\n");
                     }
-                    else if (status == -1)
+
+                    //Wait for remote nonce
+                    while (connInfo.sessionId == 0)
                     {
-                        //Error occured
-                        printf2("Error recieving the message\n");
-                        break;
+                        printf2("Waiting\n");
+                        printf2("Waiting to establish sessionID\n");
+                        int status = recvAll(&recvHolders, &connInfo, socketMain, recvProcessingBuffer, processMsg);
+                        if (status == 0)
+                        {
+                            //Connection was closed
+                            /* printf2("Connection closed by server\n"); */
+                            /* close(socketMain); */
+                            /* connectionClosedByServer = true; */
+                            //NOT CLOSED IT JUST GETS 0 BYTES AT THE END OF THE LOOP
+                            break;
+                        }
+                        else if (status == -1)
+                        {
+                            //Error occured
+                            printf2("Error recieving the message\n");
+                            break;
+                        }
                     }
                 }
-            }
 
-            //Check if sessionID (and therefore connection) is established and then send out any pending commands and recieve any pending commands
-            if (connInfo.sessionId != 0)
-            {
-                nodeCmdInfo currentCmdInfo;
-                unsigned char *pckDataEncrypted;
-                unsigned char *pckDataAdd;
-                unsigned char outBuf[MAXMSGLEN];
-                uint32_t tempGSettings = 0; //For now have empty settings (until i actually add settings)
-                int numOfCommands = getCommandQueueLength(&nodeCommandsQueue);
-                printf2("Num of commands to send out: %d\n", numOfCommands);
-                for (int i = 0; i < numOfCommands; i++)
+                //Check if sessionID (and therefore connection) is established and then send out any pending commands and recieve any pending commands
+                if (connInfo.sessionId != 0)
                 {
-                    popCommandQueue(&nodeCommandsQueue, &currentCmdInfo);
-                    print2("DEVID TO BE SENT", currentCmdInfo.devId, 16, 0);
-                    composeNodeMessage(&currentCmdInfo, &pckDataEncrypted, &pckDataAdd);
-                    encryptAndSendAll(socketMain, 0, &connInfo, &encryptionContext, pckDataEncrypted, pckDataAdd, NULL, tempGSettings, outBuf);
+                    nodeCmdInfo currentCmdInfo;
+                    unsigned char *pckDataEncrypted;
+                    unsigned char *pckDataAdd;
+                    unsigned char outBuf[MAXMSGLEN];
+                    uint32_t tempGSettings = 0; //For now have empty settings (until i actually add settings)
+                    int numOfCommands = getCommandQueueLength(&nodeCommandsQueue);
+                    printf2("Num of commands to send out: %d\n", numOfCommands);
+                    for (int i = 0; i < numOfCommands; i++)
+                    {
+                        popCommandQueue(&nodeCommandsQueue, &currentCmdInfo);
+                        print2("DEVID TO BE SENT", currentCmdInfo.devId, 16, 0);
+                        composeNodeMessage(&currentCmdInfo, &pckDataEncrypted, &pckDataAdd);
+                        encryptAndSendAll(socketMain, 0, &connInfo, &encryptionContext, pckDataEncrypted, pckDataAdd, NULL, tempGSettings, outBuf);
+                    }
+
+                    //Recieve any pending commands
+                    int ret = recvAll(&recvHolders, &connInfo, socketMain, recvProcessingBuffer, processMsg);
+                    if (ret == 1)
+                    {
+                        //Connection closed
+                        initializeConnInfo(&connInfo, 0);
+                        printf2("Connection closed from server\n");
+                        close(socketMain);
+                        connectionClosedByServer = true;
+                    }
+                }
+                else
+                {
+                    //Connection not established, do nothing
                 }
 
-                //Recieve any pending commands
-                int ret = recvAll(&recvHolders, &connInfo, socketMain, recvProcessingBuffer, processMsg);
-                if (ret == 1)
+                //Close connection
+                if (!connectionClosedByServer)
                 {
-                    //Connection closed
-                    initializeConnInfo(&connInfo, 0);
-                    printf2("Connection closed from server\n");
                     close(socketMain);
-                    connectionClosedByServer = true;
                 }
             }
-            else
-            {
-                //Connection not established, do nothing
-            }
-
-            //Close connection
-            if (!connectionClosedByServer)
-            {
-                close(socketMain);
-            }
+                
         }
         else
         {

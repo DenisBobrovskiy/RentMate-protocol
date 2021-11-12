@@ -6,7 +6,6 @@
 
 #if targetPlatform==1
 #include "pckData/pckData.h"
-#include "tinyECDH/ecdh.h"
 #elif targetPlatform==2
 #include "pckData.h"
 #include "freertos/FreeRTOS.h"
@@ -43,11 +42,8 @@ typedef struct _nodeSettings_t{
 extern arrayList nodeCommandsQueue;
 extern pthread_mutex_t commandQueueAccessMux;
 extern mbedtls_gcm_context encryptionContext;
-extern int hasEncryptionContextBeenEstablished;
 extern arrayList recvHolders;
 extern nodeSettings_t localNodeSettings;
-extern uint8_t publicDHKeyLocalBuffer[ECC_PUB_KEY_SIZE];
-extern uint8_t privateDHKeyBuffer[ECC_PRV_KEY_SIZE];
 
 //Linux client specific functions
 #if targetPlatform==1
@@ -57,6 +53,7 @@ extern uint8_t privateDHKeyBuffer[ECC_PRV_KEY_SIZE];
 void initWifiStationMode(void);
 static void wifiEventHandler(void* arg, esp_event_base_t event_base, int32_t event_id, void* event_data);
 #endif
+
 
 void initClient();
 void initStorage();
@@ -77,6 +74,5 @@ int getCommandQueueLength(arrayList *commandQueue);
 void deserializeCmdInfo(nodeCmdInfo *output, unsigned char *input);
 void serializeCmdInfo(unsigned char *output, nodeCmdInfo *input);
 int processMsg(connInfo_t *connInfo, unsigned char *message);
-
-
 #endif
+
