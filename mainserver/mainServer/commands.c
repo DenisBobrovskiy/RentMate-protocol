@@ -1,4 +1,4 @@
-#include "pckData/pckData.h"
+#include "pckData.h"
 #include <stdio.h>
 #include "server.h"
 #include "commands.h"
@@ -15,6 +15,7 @@ void initServerCommandsList(){
     serverCommands[1] = malloc(maxTestDeviceCommands*sizeof(commandPtr));
     
     serverCommands[0][0] = nodeToServerBeacon;
+    serverCommands[0][1] = nodeToServerMessage;
 }
 
 void deinitServerCommandsList(){
@@ -23,12 +24,24 @@ void deinitServerCommandsList(){
     }
 }
 
+
+//RESERVED OPCODE COMMANDS
+
 int nodeToServerBeacon(unsigned char *args, uint32_t argsLen){
     printf2("Beacon command message: ");
     for(int i = 0; i<argsLen; i++){
         printf("%c",*(args+i));
     }
     printf("\n");
+    return 0;
+}
+
+int nodeToServerMessage(unsigned char *args, uint32_t argsLen){
+    printf2("Message command recieved; Message: ");
+    for(int i = 0; i < argsLen; i++){
+        printf("%c",*(args+i));
+    }
+    printf2("\n");
     return 0;
 }
 

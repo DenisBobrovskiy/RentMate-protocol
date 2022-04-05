@@ -120,12 +120,20 @@
     | ---       | ---                       | ---                       |
     | 0         | beacon packet             | poweroff                  |
     | 1         | message packet            | message to node           |
+    | 2         | nothing                   | reboot                    |
 
     **devType: 1 (TestDevice):**  
     | opcode    | nodeToServer              | serverToNode              |
     | ---       | ---                       | ---                       |
     | 129       | NONE                      | NONE                      |
     | 130       | NONE                      | NONE                      |
+    
+    **devType: 2 (SmartLock):**  
+    | opcode | nodeToServer | serverToNode            |
+    | ---    | ---          | ---                     |
+    | 129    | NONE         | changePasscode          |
+    | 130    | NONE         | retrieveCurrentPasscode |
+    | 130    | NONE         | unlockDoor              |
 
 
 * ### Packet handling

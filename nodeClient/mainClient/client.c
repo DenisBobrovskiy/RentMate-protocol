@@ -20,9 +20,9 @@
 #include "arrayList.h"
 #include "pckData.h"
 #elif targetPlatform == 1
-#include "pckData/pckData.h"
-#include "pckData/generalSettings.h"
-#include "tinyECDH/ecdh.h"
+#include "pckData.h"
+#include "generalSettings.h"
+#include "ecdh.h"
 #endif
 
 #if targetPlatform == 2
@@ -39,6 +39,11 @@
 #include "lwip/sys.h"
 #include "esp_pthread.h"
 #include "esp_heap_trace.h"
+#endif
+
+#include "./commands/sharedCommands/sharedCommands.h"
+#if targetDevtype == 2
+#include "./commands/smartLock/commands.h"
 #endif
 
 #define ANSI_COLOR_BLUE "\x1B[34m"
@@ -87,6 +92,9 @@ pthread_mutex_t commandQueueAccessMux;
 uint8_t publicDHKeyLocalBuffer[ECC_PUB_KEY_SIZE];
 uint8_t privateDHKeyBuffer[ECC_PRV_KEY_SIZE];
 
+unsigned char pointerToKey[16] = "";
+char broadcastMessageExpected[16] = "BroadcastV100000";
+
 uint32_t sizeOfSerializedCmdInfo = 0;
 
 #if targetPlatform == 2
@@ -98,6 +106,8 @@ int main()
 #endif
     //Main init function for all platforms
     initClient();
+    unsigned char testCode[8] = "TestCode";
+    nodeCommands[1](testCode,8);
 
     //Temporary hardcoded settings. TODO: Fix the file loading on esp32!
     memcpy(localNodeSettings.devId, "TestTestTest1234", DEVIDLEN);
@@ -136,6 +146,7 @@ void initClient()
 
     //Load in settings
     // loadInNodeSettings();
+    initNodeCommands();
     initBasicClientData(&recvHolders, &globalSettings, localNodeSettings.devType);
     sizeOfSerializedCmdInfo = DEVIDLEN + 4 + 4 + 4 + sizeof(unsigned char *);
 }
@@ -186,6 +197,9 @@ int processMsg(connInfo_t *connInfo, unsigned char *message)
         //Generate shared key
         ecdh_shared_secret(privateDHKeyBuffer,publicDHKeyRemote,sharedDHKey);
         print2("Shared DH Key: ",sharedDHKey,ECC_PUB_KEY_SIZE,0);
+        memcpy(pointerToKey,sharedDHKey,KEYLEN);
+        initGCM(&encryptionContext,pointerToKey,KEYLEN*8);
+        hasEncryptionContextBeenEstablished = 1;
 
         //Save the key to be used for encryption
 
@@ -198,9 +212,12 @@ int processMsg(connInfo_t *connInfo, unsigned char *message)
     //Since before any communication the client sends a beacon packet to server. If we get a message and sessionID is yet to be established it means the server sent its part of the sessionID.
     if (connInfo->sessionId == 0)
     {
+        print2("decrypted data:",decryptionBuffer,10,0);
         //Get the remote nonce and establish sessionID
         connInfo->remoteNonce = *((uint32_t *)decryptionBuffer);
+        connInfo->localNonce = htonl(connInfo->localNonce);
         connInfo->sessionId = connInfo->localNonce + connInfo->remoteNonce;
+        printf2("local nonce: %u; remote: %u\n",connInfo->localNonce,connInfo->remoteNonce);
         printf2(ANSI_COLOR_BLUE "SessionID established. SessionID: %u\n" ANSI_COLOR_WHITE, connInfo->sessionId);
         return 0;
     }
@@ -209,6 +226,21 @@ int processMsg(connInfo_t *connInfo, unsigned char *message)
         //We received a server side message
         printf2("Recieved a message from server.\n");
         printMessage("Recieved message(decrypted)", message, 0, false, false);
+        
+        printf2("PROCESSING ACTUAL MESSAGE\n");
+        uint32_t opcode, argsLen;
+        print2("Encrypted data: ",encryptedPckDataPtr,40,0);
+        getElementFromPckData(encryptedPckDataPtr,(unsigned char*)&opcode,0);
+        argsLen = getElementLengthFromPckData(encryptedPckDataPtr,1);
+        unsigned char args[argsLen];
+        getElementFromPckData(encryptedPckDataPtr,args,1);
+
+        //Serialization
+        /* opcode = ntohl(opcode); */
+
+        printf2("opcode: %d; argsLen: %d\n",opcode,argsLen);
+        nodeCommands[opcode](args,argsLen);
+
         return 0;
     }
     else

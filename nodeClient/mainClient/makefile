@@ -1,4 +1,4 @@
-INC = -I../../misc -I../../protocol -I../../misc/mbedtls/include/
+INC = -I../../misc/AES-GCM -I../../misc/ArrayList -I../../protocol/pckData -I../../misc/tinyECDH -I../../misc/mbedtls/include/mbedtls/
 LIBDIR = -L ../../libs
 LIBS = -lpthread -lpckData -larrayList -laesgcm -ltinyECDH
 
@@ -18,7 +18,7 @@ client.exe: obj
 	gcc $(INC) $(LIBDIR) -o client.exe *.o $(LIBS) 
 
 obj: client.c
-	gcc $(INC) $(LIBDIR) -c *.c $(LIBS)
+	gcc $(INC) $(LIBDIR) -c *.c ./commands/sharedCommands/sharedCommands.c ./commands/smartLock/commands.c $(LIBS)
 
 clean:
 	rm *.o *.exe

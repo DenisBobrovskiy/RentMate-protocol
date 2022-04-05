@@ -1,5 +1,5 @@
 #include "epollRecievingThread.h"
-#include "pckData/generalSettings.h"
+#include "generalSettings.h"
 #include <stdio.h>
 #include <sys/socket.h>
 #include <sys/epoll.h>
@@ -12,7 +12,7 @@
 #include <netdb.h>
 #include <pthread.h>
 #include "server.h"
-#include "pckData/pckData.h"
+#include "pckData.h"
 #include <stddef.h>
 #include <stdlib.h>
 

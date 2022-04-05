@@ -5,8 +5,8 @@
 #include "compileFlag.h"
 
 #if targetPlatform==1
-#include "pckData/pckData.h"
-#include "tinyECDH/ecdh.h"
+#include "pckData.h"
+#include "ecdh.h"
 #elif targetPlatform==2
 #include "pckData.h"
 #include "freertos/FreeRTOS.h"
@@ -48,6 +48,8 @@ extern arrayList recvHolders;
 extern nodeSettings_t localNodeSettings;
 extern uint8_t publicDHKeyLocalBuffer[ECC_PUB_KEY_SIZE];
 extern uint8_t privateDHKeyBuffer[ECC_PRV_KEY_SIZE];
+extern unsigned char pointerToKey[16];
+extern char broadcastMessageExpected[16];
 
 //Linux client specific functions
 #if targetPlatform==1

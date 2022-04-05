@@ -14,9 +14,9 @@
 #include "compileFlag.h"
 
 #if targetPlatform == 1
-#include "pckData/pckData.h"
-#include "pckData/generalSettings.h"
-#include "tinyECDH/ecdh.h"
+#include "pckData.h"
+#include "generalSettings.h"
+#include "ecdh.h"
 #elif targetPlatform == 2
 #include "pckData.h"
 #include "generalSettings.h"
@@ -28,6 +28,7 @@
 #define ANSI_COLOR_WHITE "\x1B[37m"
 #define connectionTimeoutSeconds 3 //In seconds
 
+int packetRecievingTimeoutMs = 500; //In milliseconds, how long to wait for new packets from server after a broadcast packet
 connInfo_t connInfo;
 unsigned char sendProcessingBuffer[MAXMSGLEN];
 unsigned char recvProcessingBuffer[MAXMSGLEN];
@@ -38,10 +39,9 @@ int socketMain;
 int hasConnected = 0;
 
 struct timeval connectionTimeout;
+struct timeval recvPacketTimeout;
 char mainControllerIp[INET_ADDRSTRLEN] = "NONE";
 uint16_t port = 3333;
-unsigned char pointerToKey[16] = "KeyKeyKeyKey1234";
-char broadcastMessageExpected[16] = "BroadcastV100000";
 
 struct sockaddr_in newConnAddr;
 socklen_t sockLen;
@@ -50,6 +50,9 @@ int initializeSocket()
 {
     connectionTimeout.tv_sec = connectionTimeoutSeconds;
     connectionTimeout.tv_usec = 0;
+    recvPacketTimeout.tv_sec = packetRecievingTimeoutMs/1000;
+    recvPacketTimeout.tv_usec = (packetRecievingTimeoutMs%1000) * 1000;
+
 
     //Use this to initialize decryption key from node settings file (assuming the key has been previously established)
     /* initGCM(&encryptionContext, pointerToKey, KEYLEN * 8); */
@@ -69,6 +72,10 @@ int initializeSocket()
         perror("Error setting socket non-blocking: ");
         return -1;
     }
+
+    //Set socket timeout for recieving data
+    setsockopt(socketMain,SOL_SOCKET,SO_RCVTIMEO,(const char*)&recvPacketTimeout, sizeof recvPacketTimeout);
+
     return 0;
 }
 
@@ -258,7 +265,9 @@ void *socketThread(void *args)
                     }
 
                     //Recieve any pending commands
+                    printf2("start of recv...\n");
                     int ret = recvAll(&recvHolders, &connInfo, socketMain, recvProcessingBuffer, processMsg);
+                    printf2("end of recv...\n");
                     if (ret == 1)
                     {
                         //Connection closed

@@ -47,8 +47,8 @@ the sessionId's dont get messed up.
 #include "arrayList.h"
 #elif targetPlatform == 1
 #include <sys/epoll.h>
-#include "AES-GCM/aes-gcm.h"
-#include "ArrayList/arrayList.h"
+#include "aes-gcm.h"
+#include "arrayList.h"
 #endif
 
 #define PCKDATAMESSAGES 1

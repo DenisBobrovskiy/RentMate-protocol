@@ -2,8 +2,8 @@
 #define SERVER_HEADER_H
 
 #include <stdint.h>
-#include "ArrayList/arrayList.h"
-#include "pckData/pckData.h"
+#include "arrayList.h"
+#include "pckData.h"
 
 extern arrayList connectionsInfo;
 extern arrayList recvHolders;

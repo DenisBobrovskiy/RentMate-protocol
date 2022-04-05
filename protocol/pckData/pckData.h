@@ -11,9 +11,9 @@
 #include "lwip/sockets.h"
 #include "lwip/inet.h"
 #elif targetPlatform==1
-#include "AES-GCM/aes-gcm.h"
-#include "ArrayList/arrayList.h"
-#include "mbedtls/include/mbedtls/gcm.h"
+#include "aes-gcm.h"
+#include "arrayList.h"
+#include "gcm.h"
 #endif
 
 #include <stdint.h>

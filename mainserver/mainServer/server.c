@@ -18,15 +18,15 @@
 
 //CUSTOM
 #include "commands.h"
-#include "mbedtls/include/mbedtls/gcm.h"
-#include "ArrayList/arrayList.h"
-#include "AES-GCM/aes-gcm.h"
-#include "pckData/pckData.h"
-#include "pckData/generalSettings.h"
+#include "gcm.h"
+#include "arrayList.h"
+#include "aes-gcm.h"
+#include "pckData.h"
+#include "generalSettings.h"
 #include "server.h"
 #include "epollRecievingThread.h"
 #include "broadcastThread.h"
-#include "tinyECDH/ecdh.h"
+#include "ecdh.h"
 
 #define ANSI_COLOR_GREEN "\x1b[32m"
 #define ANSI_COLOR_BLUE  "\x1B[34m"
@@ -48,7 +48,7 @@ unsigned char sendProcessingBuffer[MAXMSGLEN];
 mbedtls_gcm_context gcmCtx;
 
 
-int main(void){
+int main(int argc, char *argv[]){
     //Helper. Remove later.
     uint32_t testNumber = 6;
     printf2("Endianess of number 6(uint32_t). Local: ");
@@ -76,9 +76,11 @@ int main(void){
     /* addToList(&devInfos,testDevInfo.devId); */
 
     commandRequestCommand_t testCommand;
-    testCommand.opCode = 69; //poweroff the node
+    unsigned char testCode[8] = "TestCode";
+    testCommand.opCode = 129; // Change lock code
     testCommand.gSettings = 0;
-    testCommand.argsPtr = NULL;
+    testCommand.argsPtr = testCode;
+    testCommand.argsLen = 8;
     testCommand.addPtr = NULL;
     addToCommandQueue("TestTestTest1234",&testCommand);
 
@@ -163,10 +165,6 @@ int processMsg(connInfo_t *connInfo, unsigned char *msg)
         if(deviceInfoFound==0){
                 printf2("No device with corresponding DEVID is known to server... Attempting to extract diffie helmann password and set up the encryption key\n");
 
-                devInfo newDevInfo;
-                memcpy(newDevInfo.devId,devIdFromMessage,DEVIDLEN);
-                addToList(&devInfos,&newDevInfo);
-                devInfoRef = &newDevInfo;
 
                 //Get the key sent from node
                 uint8_t privateDHKey[ECC_PRV_KEY_SIZE];
@@ -182,15 +180,22 @@ int processMsg(connInfo_t *connInfo, unsigned char *msg)
                 getrandom(privateDHKey,ECC_PRV_KEY_SIZE,0);
                 ecdh_generate_keys(publicDHKeyLocal,privateDHKey);
 
-                //Generate shared secret Key
+                //Generate shared secret Key and 
                 ecdh_shared_secret(privateDHKey,publicDHKeyRemote,sharedDHKey);
                 print2("Generated shared key: ",sharedDHKey,ECC_PUB_KEY_SIZE,0);
+
+                devInfo newDevInfo;
+                memcpy(newDevInfo.devId,devIdFromMessage,DEVIDLEN);
+                memcpy(newDevInfo.key,sharedDHKey,KEYLEN);
+                addToList(&devInfos,&newDevInfo);
+                devInfoRef = &newDevInfo;
 
                 //Send off local public key
                 unsigned char *addPckDataToSend;
                 initPckData(&addPckDataToSend);
                 appendToPckData(&addPckDataToSend,publicDHKeyLocal,ECC_PUB_KEY_SIZE);
                 encryptAndSendAll(connInfo->socket,0,NULL,NULL,NULL,NULL,addPckDataToSend,0,sendProcessingBuffer);
+                printf2("Successfully exchanged diffie helmann key for encryption!\n");
                 return 0;
                     
 
@@ -235,16 +240,19 @@ int processMsg(connInfo_t *connInfo, unsigned char *msg)
 
             encryptAndSendAll(connInfo->socket,0,connInfo,&gcmCtx,pckDataEncrypted,pckDataADD,pckDataExtra,0,sendProcessingBuffer);
 
+            //Convert local nonce back to host order
+            connInfo->localNonce = ntohl(connInfo->localNonce);
+
             //SET SESSION ID AFTER SENDING OFF THE NONCE, OTHERWISE THE encryptAndSendAll() function will think that sessioID was establish and misbehave!!
             connInfo->sessionId = connInfo->remoteNonce + connInfo->localNonce;  //GENERATING THE NEW SESSION ID BY ADDING UP THE NONCES
 
             printf2("Nonce local: %u; Nonce remote: %u; Generated sessionID: %u\n", connInfo->localNonce, connInfo->remoteNonce, connInfo->sessionId);
             printf2(ANSI_COLOR_BLUE "SessionID established. SessionID: %u\n" ANSI_COLOR_RESET,connInfo->sessionId);
 
-            //NOW SEND OFF ANY MESSAGES IN THE QUEUE
+            //NOW SEND OFF ANY MESSAGES IN THE QUEUE AND RECIEVE ANY NEW MESSAGES OR REPLIES FROM NODE
             sendQueuedMessages(connInfo,devInfoRef);
-            printf2("Closing the connection\n");
-            close1(connInfo->socket,&connectionsInfo);
+            /* printf2("Closing the connection\n"); */
+            /* close1(connInfo->socket,&connectionsInfo); */
 
         }else if(connInfo->remoteNonce==0 && connInfo->localNonce!=0){
             //We sent our nonce before but have just recieved the nonce of the other side
@@ -259,8 +267,8 @@ int processMsg(connInfo_t *connInfo, unsigned char *msg)
 
             //NOW SEND OFF ANY MESSAGES IN THE QUEUE
             sendQueuedMessages(connInfo,devInfoRef);
-            printf2("Closing the connection\n");
-            close1(connInfo->socket,&connectionsInfo);
+            /* printf2("Closing the connection\n"); */
+            /* close1(connInfo->socket,&connectionsInfo); */
 
         }else if(connInfo->sessionId!=0){
             //Process actual messages

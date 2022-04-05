@@ -3,7 +3,7 @@
 #include "compileFlag.h"
 
 #if targetPlatform==1
-#include "pckData/pckData.h"
+#include "pckData.h"
 #elif targetPlatform==2
 #include "pckData.h"
 #endif
