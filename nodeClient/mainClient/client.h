@@ -9,6 +9,7 @@
 #include "ecdh.h"
 #elif targetPlatform==2
 #include "pckData.h"
+#include "ecdh.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "freertos/event_groups.h"
@@ -57,7 +58,6 @@ extern char broadcastMessageExpected[16];
 #elif targetPlatform==2
 //ESP32 specific functions
 void initWifiStationMode(void);
-static void wifiEventHandler(void* arg, esp_event_base_t event_base, int32_t event_id, void* event_data);
 #endif
 
 void initClient();

@@ -5,8 +5,18 @@
 #include "arrayList.h"
 #include "pckData.h"
 
+extern pthread_mutex_t commandsQueueMux;
 extern arrayList connectionsInfo;
 extern arrayList recvHolders;
+
+//Local settings file for the local server device
+typedef struct _localSettingsStruct{
+    char username[30];
+    char propertyId[24];
+    char propertyKey[12];
+}localSettingsStruct;
+
+extern localSettingsStruct localSettings;
 
 int modifySetting(unsigned char *settingName, int settingLen, uint32_t newOption);
 static int printf2(char *formattedInput, ...);

@@ -19,6 +19,7 @@
 #include "ecdh.h"
 #elif targetPlatform == 2
 #include "pckData.h"
+#include "ecdh.h"
 #include "generalSettings.h"
 #include "lwip/sockets.h"
 #include "lwip/inet.h"
@@ -175,7 +176,9 @@ void *socketThread(void *args)
             }
         }
         //After accepted connection, set socket to blocking again (Because it doesnt need to be non-blocking to have a timeout, unlike for connection call, where we need to use non-blocking socket with select to have a connection attempt timeout)
-        int opts = opts = opts & (~O_NONBLOCK);
+        // int opts = opts = opts & (~O_NONBLOCK);
+        int opts = 0;
+        opts = opts & (~O_NONBLOCK);
         if(fcntl(socketMain,F_SETFL,opts)==-1){
             //Error resetting socket back to blocking mode
             perror("Eror resetting socket back to blocking mode: ");

@@ -19,7 +19,11 @@
 #include "aes-gcm.h"
 #include "arrayList.h"
 #include "pckData.h"
+#include "ecdh.h"
+#include "smartLock/matrixKeyboard.h"
+#include "smartLock/smartLockCore.h"
 #elif targetPlatform == 1
+#include "arrayList.h"
 #include "pckData.h"
 #include "generalSettings.h"
 #include "ecdh.h"
@@ -39,6 +43,7 @@
 #include "lwip/sys.h"
 #include "esp_pthread.h"
 #include "esp_heap_trace.h"
+#include "driver/gpio.h"
 #endif
 
 #include "./commands/sharedCommands/sharedCommands.h"
@@ -50,8 +55,18 @@
 #define ANSI_COLOR_WHITE "\x1B[37m"
 
 //WIFI DATA
-#define networkSSID "testbench"
-#define networkPassword "testbenchPassword"
+// #define networkSSID "testbench"
+// #define networkPassword "testbenchPassword"
+
+#define networkSSID "TP-Link_1A84"
+#define networkPassword "38794261"
+
+// #define networkSSID "TP-Link_E69940"
+// #define networkPassword "73594536"
+
+// #define networkSSID "casamoner WIFI-5G"
+// #define networkPassword "kamuteco"
+
 #define wifiMaximumReconnectAttempts 100
 
 
@@ -75,6 +90,8 @@ char *nodeSettingsFileName = "/spiffs/nodeSettings.conf";
 
 #endif
 
+//Static function prototypes
+static void wifiEventHandler(void* arg, esp_event_base_t event_base, int32_t event_id, void* event_data);
 
 nodeSettings_t localNodeSettings;
 globalSettingsStruct globalSettings;
@@ -122,8 +139,39 @@ int main()
     composeBeaconPacketCmdInfo(&testBeaconCmdInfo, (unsigned char *)"TestBeacon1", 12);
     addToCommandQueue(&nodeCommandsQueue, &testBeaconCmdInfo);
 
+    printf2("Creating socket thread\n");
     //Create socket thread
     pthread_create(&socketThreadID, NULL, socketThread, NULL);
+
+    #if targetPlatform==2
+    //Set pin for the motor driver EN high
+    // gpio_pad_select_gpio(26);
+    // gpio_set_direction(26,GPIO_MODE_OUTPUT);
+    // gpio_set_level(26,1);
+
+    gpio_pad_select_gpio(2);
+    gpio_set_direction(2,GPIO_MODE_OUTPUT);
+
+    //Temporary loop to test out functionality
+    initLock();
+    while(true){
+        printf2("testing\n");
+        // gpio_set_level(2,1);
+
+        //Get keypad voltages
+        int row1Vol = gpio_get_level(KEYPAD_ROW1_PIN);
+        int row2Vol = gpio_get_level(KEYPAD_ROW2_PIN);
+        int row3Vol = gpio_get_level(KEYPAD_ROW3_PIN);
+        int row4Vol = gpio_get_level(KEYPAD_ROW4_PIN);
+        printf2("Keypad voltages: 1: %d, 2: %d, 3: %d, 4: %d\n",row1Vol,row2Vol,row3Vol,row4Vol);
+
+        sleep_ms(500);
+        // gpio_set_level(2,0);
+        sleep_ms(500);
+    }
+
+    #endif
+
     pthread_join(socketThreadID, NULL);
 
     return 0;
@@ -656,5 +704,47 @@ static void wifiEventHandler(void *arg, esp_event_base_t event_base, int32_t eve
         xEventGroupSetBits(s_wifi_event_group, WIFI_CONNECTED_BIT);
     }
 }
+
+//MATRIX KEYBOARD STUFF (ADVANCED VERSION FOR S2 and S3 chips)
+
+//Matrix keyboard callback
+// esp_err_t example_matrix_kbd_event_handler(matrix_kbd_handle_t mkbd_handle, matrix_kbd_event_id_t event, void *event_data, void *handler_args)
+// {
+//     uint32_t key_code = (uint32_t)event_data;
+//     switch (event) {
+//     case MATRIX_KBD_EVENT_DOWN:
+//         ESP_LOGI(TAG, "press event, key code = %04x", key_code);
+//         break;
+//     case MATRIX_KBD_EVENT_UP:
+//         ESP_LOGI(TAG, "release event, key code = %04x", key_code);
+//         break;
+//     }
+//     return ESP_OK;
+// }
+
+
+//Init matrix keyboard. This is used for more advanced keypad code only supported on s2 and s3 chip versions
+// void initKeyboard(){
+//     matrix_kbd_handle_t kbd = NULL;
+//     // Apply default matrix keyboard configuration
+//     matrix_kbd_config_t config = MATRIX_KEYBOARD_DEFAULT_CONFIG();
+//     // Set GPIOs used by row and column line
+//     config.col_gpios = (int[]) {
+//         33, 27, 32
+//     };
+//     config.nr_col_gpios = 3;
+//     config.row_gpios = (int[]) {
+//         22, 23, 25, 26
+//     };
+//     config.nr_row_gpios = 4;
+//     // Install matrix keyboard driver
+//     matrix_kbd_install(&config, &kbd);
+//     // Register keyboard input event handler
+//     matrix_kbd_register_event_handler(kbd, example_matrix_kbd_event_handler, NULL);
+//     // Keyboard start to work
+//     matrix_kbd_start(kbd);
+// }
+
+
 #endif
 

@@ -25,7 +25,10 @@ set_target_properties(arrayListLib PROPERTIES LINKER_LANGUAGE C)
 file(GLOB sourcesAesGcm ../../misc/AES-GCM/*.c)
 add_library(aesGcmLib STATIC ${sourcesAesGcm} ) #AES-GCM helpers library
 # target_link_libraries(aesGcmLib ../../misc/mbedtls/library/libmbedcrypto.a) #Add the mbedtls library
+
+#TODO: Fix the absolute path so can compile on different devices
 target_link_libraries(aesGcmLib /home/main/Projects/iot_system/misc/mbedtls/library/libmbedcrypto.a)
+
 target_include_directories(aesGcmLib PUBLIC ../../misc/mbedtls/include/mbedtls) #Add the include directories for mbedtls library
 set_target_properties(aesGcmLib PROPERTIES LINKER_LANGUAGE C)
 
@@ -52,7 +55,7 @@ find_package(Threads REQUIRED)
 #Add executable
 # file(GLOB sources *.c)
 # add_executable(main ${sources})
-add_executable(main server.c broadcastThread.c commands.c epollRecievingThread.c)
+add_executable(main server.c broadcastThread.c commands.c epollRecievingThread.c webSocketThread.c)
 set_target_properties(main PROPERTIES LINKER_LANGUAGE C)
 
 
@@ -62,9 +65,13 @@ target_link_libraries(main PRIVATE pckDataLib)
 target_link_libraries(main PRIVATE aesGcmLib)
 target_link_libraries(main PRIVATE arrayListLib)
 target_link_libraries(main PRIVATE tinyECDHLib)
+target_link_libraries(main PRIVATE /usr/local/lib/libwebsockets.so)
+target_link_libraries(main PRIVATE /home/main/Projects/iot_system/misc/json-c/build/libjson-c.so) #TODO: Fix absolute path
 
 #Add include directories
 target_include_directories(main PUBLIC ../../protocol/pckData)
 target_include_directories(main PUBLIC ../../misc/AES-GCM)
 target_include_directories(main PUBLIC ../../misc/ArrayList)
 target_include_directories(main PUBLIC ../../misc/tinyECDH)
+target_include_directories(main PUBLIC ../../misc/json-c)
+target_include_directories(main PUBLIC ../../misc/json-c/build)

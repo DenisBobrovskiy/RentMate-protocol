@@ -27,6 +27,7 @@
 #include "epollRecievingThread.h"
 #include "broadcastThread.h"
 #include "ecdh.h"
+#include "webSocketThread.h"
 
 #define ANSI_COLOR_GREEN "\x1b[32m"
 #define ANSI_COLOR_BLUE  "\x1B[34m"
@@ -35,6 +36,8 @@
 
 //MULTITHREADING
 pthread_t epollRecievingThreadID, broadcastThreadID; //Thread that listens for node and user commands
+pthread_t websocketThreadID; //Thread that initializes a websocket client to listen for user commands
+pthread_mutex_t commandsQueueMux;
 
 
 arrayList connectionsInfo;  //Store info for every connection to server
@@ -42,6 +45,7 @@ arrayList recvHolders;  //Necesarry for storing recieved data sent in multiple p
 arrayList devInfos; //Stores information for every device known to the server
 arrayList commandsQueue;    //Stores the commands recieved from a client(used not node). Queued up for execution
 globalSettingsStruct globalSettings;    //global settings. Loaded and saved in a config plaintext file
+localSettingsStruct localSettings;
 
 unsigned char decryptedMsgBuffer[MAXMSGLEN];
 unsigned char sendProcessingBuffer[MAXMSGLEN];
@@ -87,11 +91,20 @@ int main(int argc, char *argv[]){
 
     pthread_create(&broadcastThreadID,NULL,broadcastThread,NULL);
     pthread_create(&epollRecievingThreadID,NULL,epollRecievingThread,NULL);
+    pthread_create(&websocketThreadID,NULL,websocketThread,NULL);
     pthread_join(epollRecievingThreadID,NULL);
     pthread_join(broadcastThreadID,NULL);
 }
 
 void initServer(){
+    //Temporarily initialize local settings
+    memset(localSettings.username,0,30);
+    memset(localSettings.propertyId,0,24);
+    memset(localSettings.propertyKey,0,12);
+    strcpy(localSettings.username,"test@gmail.com");
+    strcpy(localSettings.propertyId,"6238ca120382660655217a84");
+    strcpy(localSettings.propertyKey,"propKey1");
+
     initBasicServerData(&connectionsInfo, &recvHolders, &devInfos, &commandsQueue, &globalSettings, 0);
     initServerCommandsList();
 }
@@ -312,6 +325,7 @@ int processMsg(connInfo_t *connInfo, unsigned char *msg)
 
 //Empties the server message queue for specific device and sends them all off to corresponding device
 void sendQueuedMessages(connInfo_t *connInfo, devInfo *devInfo){
+    pthread_mutex_lock(&commandsQueueMux);
     printf2("Sending off queued messages\n");
     printf2("Command queue length: %d\n",commandsQueue.length);
     for(int i = 0; i <commandsQueue.length; i++){
@@ -330,10 +344,12 @@ void sendQueuedMessages(connInfo_t *connInfo, devInfo *devInfo){
             removeFromList(&commandsQueue,i);
         }
     }
+    pthread_mutex_unlock(&commandsQueueMux);
 
 }
 
 void addToCommandQueue(unsigned char *DEVID, commandRequestCommand_t *command){
+    pthread_mutex_lock(&commandsQueueMux);
     for(int i = 0; i<commandsQueue.length; i++){
         commandRequest_t *commandRequest = getFromList(&commandsQueue,i);
         if((memcmp(commandRequest->devId,DEVID,DEVIDLEN))==0){
@@ -353,6 +369,7 @@ void addToCommandQueue(unsigned char *DEVID, commandRequestCommand_t *command){
     newCommandRequestRef->commandRequestsCommands = newCommandList;
     addToList(&(newCommandRequestRef->commandRequestsCommands),command);
 
+    pthread_mutex_unlock(&commandsQueueMux);
 
 }
 
