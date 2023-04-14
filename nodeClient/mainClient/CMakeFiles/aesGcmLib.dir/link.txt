@@ -1,0 +1,2 @@
+/usr/bin/ar qc libaesGcmLib.a "CMakeFiles/aesGcmLib.dir/home/main/Projects/iot_system/misc/AES-GCM/aes-gcm.c.o"
+/usr/bin/ranlib libaesGcmLib.a

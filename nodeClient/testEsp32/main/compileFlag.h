@@ -7,6 +7,9 @@
 // 0  - NONE (Dont use)
 // 1 - TestDevice (Testing purposes only)
 // 2 - SmartLock
-#define targetDevtype 2 
+// 3 - Smart Socket
+// 4 - Presence Detector
+// 5 - Noise Monitor
+#define targetDevtype 5
 
 #endif

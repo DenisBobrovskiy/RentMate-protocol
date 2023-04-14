@@ -75,6 +75,34 @@ typedef struct _devInfo{
 	unsigned char devId[DEVIDLEN]; //Unique device identifier (like a MAC address)
 	unsigned char key[KEYLEN];  //AES-GCM encryption key for this device, generate and exchange on first connection
 	uint32_t devType;   //Type of device. If is 0, then it isnt set.
+    
+    uint8_t deviceConnectionType; 
+    // 0 - undefined;
+    //1 - interval (for power low devices that only send beacons and recieve at certain intervals)
+    //2 - connected fully (this is a fully connected device, most likely battery powered to constantly maintain wifi connection)
+
+    uint8_t deviceConnectionStatus;
+    //0 - disconnected (for fully connected device this is when socket connection is interrupted)
+    //1 - connected (for interval connected device this is when a device hasnt reconnected for too long TODO: implement)
+
+
+    time_t lastConnectionTime;
+    
+    //Fields for smart lock
+    uint8_t lockState;
+    uint8_t doorState;
+    uint8_t passwordLen;
+    uint8_t password[12];
+
+    //Fields for smart socket
+    uint8_t socketStatus;
+
+    //Fields for noise monitor
+    uint8_t noiseLevel;
+    uint8_t noiseThresholdReached;
+
+    //Fields for presence detector
+    uint8_t presenceDetected;
 }devInfo;
 
 //Structure storing a list of commands that needs to be executed for every DEVID

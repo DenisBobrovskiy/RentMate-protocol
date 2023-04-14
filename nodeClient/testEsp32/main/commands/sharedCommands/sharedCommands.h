@@ -21,7 +21,9 @@ extern commandPtr *nodeCommands;
 
 void initSharedNodeCommands(int maxUserCommands);
 
+int poweroffMessage(unsigned char *args, uint32_t argsLen);
 int serverToNodeMessage(unsigned char *args, uint32_t argsLen);
+int rebootMessage(unsigned char *args, uint32_t argsLen);
 
 static int printf2(char *formattedInput, ...);
 

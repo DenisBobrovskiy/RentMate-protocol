@@ -1,0 +1,7 @@
+/home/main/Projects/iot_system/nodeClient/mainClient/CMakeFiles/arrayListLib.dir
+/home/main/Projects/iot_system/nodeClient/mainClient/CMakeFiles/aesGcmLib.dir
+/home/main/Projects/iot_system/nodeClient/mainClient/CMakeFiles/pckDataLib.dir
+/home/main/Projects/iot_system/nodeClient/mainClient/CMakeFiles/tinyECDHLib.dir
+/home/main/Projects/iot_system/nodeClient/mainClient/CMakeFiles/main.dir
+/home/main/Projects/iot_system/nodeClient/mainClient/CMakeFiles/edit_cache.dir
+/home/main/Projects/iot_system/nodeClient/mainClient/CMakeFiles/rebuild_cache.dir

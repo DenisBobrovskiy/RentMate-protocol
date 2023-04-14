@@ -1,0 +1,2 @@
+/usr/bin/ar qc libtinyECDHLib.a CMakeFiles/tinyECDHLib.dir/home/main/Projects/iot_system/misc/tinyECDH/ecdh.c.o
+/usr/bin/ranlib libtinyECDHLib.a

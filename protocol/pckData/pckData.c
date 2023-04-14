@@ -52,7 +52,7 @@ the sessionId's dont get messed up.
 #endif
 
 #define PCKDATAMESSAGES 1
-#define RECVALLMESSAGES 0
+#define RECVALLMESSAGES 1
 
 #define ANSI_BACKGROUND_BLUE "\e[44m"
 #define ANSI_BACKGROUND_GREEN "\e[42m"
@@ -444,9 +444,9 @@ int encryptPckData(mbedtls_gcm_context *ctx,
     extraDataLen += userExtraDataLen;
 
     uint32_t msgLen = 4 + 4 + 4 + IVLEN + TAGLEN + addLen + extraDataLen + 4 + 4 + pckDataLen;
-    /* printf2("Msg len: %d\n",msgLen); */
-    /* printf2("Add len: %d\n",addLen); */
-    /* printf2("Extra data len: %d\n",extraDataLen); */
+     printf2("Msg len: %d\n",msgLen); 
+     printf2("Add len: %d\n",addLen); 
+     printf2("Extra data len: %d\n",extraDataLen); 
 
     //Unencrypted data
     unsigned char *msgLenPtr = outputBuf;
@@ -866,6 +866,12 @@ uint32_t getElementFromPckData(unsigned char *pckData, unsigned char *output, in
     while (!isDone)
     {
         uint32_t currentElemLen = *(uint32_t *)(pckData + currentPosition);
+
+        //Check if the pckData is empty
+        if(currentPosition+4>=totalLen){
+            printf2("The pckData you are accessing is empty. Quitting\n");
+            return -1;
+        }
 
         if (index == currentIndex)
         {

@@ -1,0 +1,2 @@
+/usr/bin/ar qc libarrayListLib.a CMakeFiles/arrayListLib.dir/home/main/Projects/iot_system/misc/ArrayList/arrayList.c.o
+/usr/bin/ranlib libarrayListLib.a

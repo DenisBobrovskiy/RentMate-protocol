@@ -57,7 +57,6 @@ void initKeypad()
     gpio_set_intr_type(KEYPAD_ROW3_PIN, GPIO_INTR_NEGEDGE);
     gpio_set_intr_type(KEYPAD_ROW4_PIN, GPIO_INTR_NEGEDGE);
 
-    gpio_install_isr_service(0);
 
     gpio_isr_handler_add(KEYPAD_ROW1_PIN, keypadInterruptHandler, (void *)1);
     gpio_isr_handler_add(KEYPAD_ROW2_PIN, keypadInterruptHandler, (void *)2);

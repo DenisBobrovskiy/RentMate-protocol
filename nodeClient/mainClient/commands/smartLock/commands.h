@@ -17,6 +17,9 @@
 void initNodeCommands();
 
 int changePasscode(unsigned char *args, uint32_t argsLen);
+int retrieveCurrentPasscode(unsigned char *args, uint32_t argsLen);
+int unlockDoor(unsigned char *args, uint32_t argsLen);
+int lockDoor(unsigned char *args, uint32_t argsLen);
 
 static int printf2(char *formattedInput, ...);
 

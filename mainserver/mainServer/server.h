@@ -8,6 +8,7 @@
 extern pthread_mutex_t commandsQueueMux;
 extern arrayList connectionsInfo;
 extern arrayList recvHolders;
+extern arrayList devInfos; //Stores information for every device known to the server
 
 //Local settings file for the local server device
 typedef struct _localSettingsStruct{
@@ -29,5 +30,8 @@ void addToCommandQueue(unsigned char *DEVID, commandRequestCommand_t *command);
 void sendOffCommand(commandRequestCommand_t *command, connInfo_t *connInfo, unsigned char *devId);
 
 unsigned char * findEncryptionKey(unsigned char *DEVID);
+
+int loadInServerSettings();
+int saveDevInfoToConfigFile(devInfo *data);
 
 #endif

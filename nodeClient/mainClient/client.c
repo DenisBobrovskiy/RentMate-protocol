@@ -1,3 +1,4 @@
+// Shared includes
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
@@ -14,14 +15,14 @@
 #include <string.h>
 #include "compileFlag.h"
 #include "client.h"
+#include "math.h"
 
+// Custom library includes
 #if targetPlatform == 2
 #include "aes-gcm.h"
 #include "arrayList.h"
 #include "pckData.h"
 #include "ecdh.h"
-#include "smartLock/matrixKeyboard.h"
-#include "smartLock/smartLockCore.h"
 #elif targetPlatform == 1
 #include "arrayList.h"
 #include "pckData.h"
@@ -29,6 +30,7 @@
 #include "ecdh.h"
 #endif
 
+// ESP-IDF includes
 #if targetPlatform == 2
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -37,6 +39,7 @@
 #include "esp_wifi.h"
 #include "esp_event.h"
 #include "esp_log.h"
+#include "esp_err.h"
 #include "nvs_flash.h"
 #include "pckData.h"
 #include "lwip/err.h"
@@ -44,22 +47,42 @@
 #include "esp_pthread.h"
 #include "esp_heap_trace.h"
 #include "driver/gpio.h"
+#include "driver/adc.h"
+#include "esp_spiffs.h"
 #endif
 
+// Device specific includes
 #include "./commands/sharedCommands/sharedCommands.h"
-#if targetDevtype == 2
+#if targetDevtype == 2 // Smart lock
 #include "./commands/smartLock/commands.h"
+#include "./smartLock/matrixKeyboard.h"
+#include "./smartLock/smartLockCore.h"
+
+#elif targetDevtype == 3 // Smart socket
+#include "./commands/smartSocket/commands.h"
+
+#elif targetDevtype == 4 // Presence Detector
+#include "./commands/presenceDetector/commands.h"
+
+#elif targetDevtype == 5 // Noise monitor
+#include "./commands/noiseMonitor/commands.h"
+#include "./noiseMonitor/noiseMonitorCore.h"
+
 #endif
 
 #define ANSI_COLOR_BLUE "\x1B[34m"
 #define ANSI_COLOR_WHITE "\x1B[37m"
 
-//WIFI DATA
-// #define networkSSID "testbench"
-// #define networkPassword "testbenchPassword"
+// WIFI DATA
 
-#define networkSSID "TP-Link_1A84"
-#define networkPassword "38794261"
+// #define networkSSID "w"
+// #define networkPassword "IforgotThePa$$w0rd"
+
+#define networkSSID "testbench"
+#define networkPassword "testbenchPassword"
+
+// #define networkSSID "TP-Link_1A84"
+// #define networkPassword "38794261"
 
 // #define networkSSID "TP-Link_E69940"
 // #define networkPassword "73594536"
@@ -69,12 +92,22 @@
 
 #define wifiMaximumReconnectAttempts 100
 
+// Devtype specific values (DONT PUT ANY HERE UNLESS NECESARRY, STORE DEVICE SPECIFIC VARIABLES IN THEIR SOURCE FILES)
+#if targetDevtype == 2 // Smart lock
+
+#elif targetDevtype == 3 // Smart socket
+
+#elif targetDevtype == 4 // Presence detector
+
+#elif targetDevtype == 5 // Noise monitor
+
+#endif
 
 #if targetPlatform == 1
 char *nodeSettingsFileName = "nodeSettings.conf";
 #elif targetPlatform == 2
 
-//WIFI SETTINGS for esp32
+// WIFI SETTINGS for esp32
 /* FreeRTOS event group to signal when we are connected*/
 static EventGroupHandle_t s_wifi_event_group;
 /* The event group allows multiple bits for each event, but we only care about two events:
@@ -85,13 +118,15 @@ static EventGroupHandle_t s_wifi_event_group;
 static const char *TAG = "wifi station";
 static int s_retry_num = 0;
 
-//Configuration file settings
+// Configuration file settings
 char *nodeSettingsFileName = "/spiffs/nodeSettings.conf";
 
 #endif
 
-//Static function prototypes
-static void wifiEventHandler(void* arg, esp_event_base_t event_base, int32_t event_id, void* event_data);
+// Static function prototypes
+#if targetPlatform == 2
+static void wifiEventHandler(void *arg, esp_event_base_t event_base, int32_t event_id, void *event_data);
+#endif
 
 nodeSettings_t localNodeSettings;
 globalSettingsStruct globalSettings;
@@ -114,6 +149,15 @@ char broadcastMessageExpected[16] = "BroadcastV100000";
 
 uint32_t sizeOfSerializedCmdInfo = 0;
 
+// unsigned char deviceName[20];
+// #if targetPlatform ==2
+// memcpy(deviceName,"TestLock",8);
+// #elif targetPlatform ==3
+// memcpy(deviceName,"TestLock",8);
+// #endif
+
+
+
 #if targetPlatform == 2
 int app_main()
 {
@@ -121,61 +165,156 @@ int app_main()
 int main()
 {
 #endif
-    //Main init function for all platforms
+    // Main init function for all platforms
     initClient();
     unsigned char testCode[8] = "TestCode";
-    nodeCommands[1](testCode,8);
+    nodeCommands[1](testCode, 8);
 
-    //Temporary hardcoded settings. TODO: Fix the file loading on esp32!
-    memcpy(localNodeSettings.devId, "TestTestTest1234", DEVIDLEN);
-    localNodeSettings.devType = 1;
+    // Temporary hardcoded settings. TODO: Fix the file loading on esp32!
 
-    //Initialize node command queue
+
+
+    #if targetDevtype==2
+    localNodeSettings.devType = 2;
+    #elif targetDevtype==3
+    localNodeSettings.devType = 3;
+    #elif targetDevtype==4
+    localNodeSettings.devType = 4;
+    #elif targetDevtype==5
+    localNodeSettings.devType = 5;
+    #endif
+
+    // Initialize node command queue
     pthread_mutex_init(&commandQueueAccessMux, NULL);
     initializeCommandQueue(&nodeCommandsQueue);
 
-    //Send test command
+    // Send test command
     nodeCmdInfo testBeaconCmdInfo;
-    composeBeaconPacketCmdInfo(&testBeaconCmdInfo, (unsigned char *)"TestBeacon1", 12);
-    addToCommandQueue(&nodeCommandsQueue, &testBeaconCmdInfo);
+    // composeBeaconPacketCmdInfo(&testBeaconCmdInfo, (unsigned char *)"TestBeacon1", 12);
+    // addToCommandQueue(&nodeCommandsQueue, &testBeaconCmdInfo);
 
     printf2("Creating socket thread\n");
-    //Create socket thread
+    // Create socket thread
     pthread_create(&socketThreadID, NULL, socketThread, NULL);
 
-    #if targetPlatform==2
-    //Set pin for the motor driver EN high
-    // gpio_pad_select_gpio(26);
-    // gpio_set_direction(26,GPIO_MODE_OUTPUT);
-    // gpio_set_level(26,1);
+#if targetPlatform == 2
+// Set pin for the motor driver EN high
+//  gpio_set_direction(26,GPIO_MODE_OUTPUT);
+//  gpio_set_level(26,1);
 
-    gpio_pad_select_gpio(2);
-    gpio_set_direction(2,GPIO_MODE_OUTPUT);
+// gpio_pad_select_gpio(2);
+// gpio_set_direction(2,GPIO_MODE_OUTPUT);
 
-    //Temporary loop to test out functionality
+// //Temporary loop to test out functionality
+// adc1_config_width(ADC_WIDTH_BIT_12);
+// adc1_config_channel_atten(ADC1_CHANNEL_0,ADC_ATTEN_DB_0);
+// int val = adc1_get_raw(ADC1_CHANNEL_0);
+
+// Init commands specific to different devtypes
+#if targetDevtype == 2
     initLock();
-    while(true){
-        printf2("testing\n");
+#elif targetDevtype == 5
+    initNoiseMonitor();
+#endif
+
+    // Main loop
+    while (true)
+    {
+        // printf2("testing\n");
         // gpio_set_level(2,1);
 
-        //Get keypad voltages
-        int row1Vol = gpio_get_level(KEYPAD_ROW1_PIN);
-        int row2Vol = gpio_get_level(KEYPAD_ROW2_PIN);
-        int row3Vol = gpio_get_level(KEYPAD_ROW3_PIN);
-        int row4Vol = gpio_get_level(KEYPAD_ROW4_PIN);
-        printf2("Keypad voltages: 1: %d, 2: %d, 3: %d, 4: %d\n",row1Vol,row2Vol,row3Vol,row4Vol);
+        // Get keypad voltages
+        //  int row1Vol = gpio_get_level(KEYPAD_ROW1_PIN);
+        //  int row2Vol = gpio_get_level(KEYPAD_ROW2_PIN);
+        //  int row3Vol = gpio_get_level(KEYPAD_ROW3_PIN);
+        //  int row4Vol = gpio_get_level(KEYPAD_ROW4_PIN);
+        //  int val = adc1_get_raw(ADC1_CHANNEL_0);
+        //  printf2("Keypad voltages: 1: %d, 2: %d, 3: %d, 4: %d, ADC: %d\n",row1Vol,row2Vol,row3Vol,row4Vol,val);
+
+        #if targetDevtype == 2 //Smart lock
 
         sleep_ms(500);
-        // gpio_set_level(2,0);
+        // int output = gpio_get_level(SWITCH_LOCK_OPEN_PIN);
+        // int output2 = gpio_get_level(SWITCH_LOCK_CLOSED_PIN);
+        // printf2("switch door opened state: %d\n",output);
+        // printf2("switch door closed state: %d\n",output2);
+
+        printf2("Current door state: %d. Current lock state: %d\n",currentDoorState,currentLockState);
+
+        // //Send beacon command
+        // nodeCmdInfo beaconCmdInfo;
+        // if(connInfo.sessionId!=0){
+        //     printf2("Sending lock beacon packet\n");
+        //     composeSmartLockBeaconCmdInfo(&beaconCmdInfo,currentLockState,currentDoorState,currentPasscode,currentPasscodeLen);
+        //     addToCommandQueue(&nodeCommandsQueue, &beaconCmdInfo);
+        // }
+
+
+        #endif
+
+        #if targetDevtype == 4
+        printf2("Presence detector running\n");
+        if(connInfo.sessionId!=0){
+            printf2("Sending noise beacon packet\n");
+            compo(&beaconCmdInfo, valDb);
+            addToCommandQueue(&nodeCommandsQueue, &beaconCmdInfo);
+        }
         sleep_ms(500);
+        #endif
+
+        #if targetDevtype == 5 //Noise monitor
+        printf2("Noise monitor running\n");
+        int val = adc1_get_raw(ADC1_CHANNEL_4);
+        float valFloat = (float)val;
+        printf2("Noise level: %d\n",val);
+
+        //Get log level
+        float valDb = 20 * log(valFloat/4096.0) * -1;
+        int valFloor = (int)floor(valDb);
+        // float valDb = (20. * log(10)) *
+        printf2("Noise level (dB): %.3f\n",valDb);
+        printf2("Noise level (dB): %d\n",valFloor);
+
+        //Send beacon command
+        nodeCmdInfo beaconCmdInfo;
+        if(connInfo.sessionId!=0){
+            printf2("Sending noise beacon packet\n");
+            composeNoiseMonitorBeaconCmdInfo(&beaconCmdInfo, valDb);
+            addToCommandQueue(&nodeCommandsQueue, &beaconCmdInfo);
+        }
+
+        sleep_ms(500);
+        #endif
     }
 
-    #endif
+#endif
 
     pthread_join(socketThreadID, NULL);
 
     return 0;
 }
+
+char *rand_string(char *str, size_t size)
+{
+    const char charset[] = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJK";
+    #if targetPlatform==1
+    if (size) {
+        for (size_t n = 0; n < size; n++) {
+            int key = rand() % (int) (sizeof charset - 1);
+            str[n] = charset[key];
+        }
+    }
+    #elif targetPlatform==2
+    if (size) {
+        for (size_t n = 0; n < size; n++) {
+            int key = esp_random() % (int) (sizeof charset - 1);
+            str[n] = charset[key];
+        }
+    }
+    #endif
+    return str;
+}
+
 
 void initClient()
 {
@@ -184,110 +323,122 @@ void initClient()
 #elif targetPlatform == 2
     printf2("Initializing esp32 client\n");
 
-    //Initialize storage filesystems
+    // Initialize storage filesystems
     initStorage();
-    //Initialize wifi stack for esp32
+    // Initialize wifi stack for esp32
     initWifiStationMode();
 
 #endif
-    //Platform agnostic init functions
+    // Platform agnostic init functions
 
-    //Load in settings
-    // loadInNodeSettings();
+    // Load in settings
+    loadInNodeSettings();
     initNodeCommands();
     initBasicClientData(&recvHolders, &globalSettings, localNodeSettings.devType);
     sizeOfSerializedCmdInfo = DEVIDLEN + 4 + 4 + 4 + sizeof(unsigned char *);
 }
 
-
 int processMsg(connInfo_t *connInfo, unsigned char *message)
 {
     printf2("Processing recieved message\n");
 
-    //MESSAGE STRUCTURE
-    uint32_t msgLen = *(uint32_t*)message;
+    // MESSAGE STRUCTURE
+    uint32_t msgLen = *(uint32_t *)message;
     msgLen = ntohl(msgLen);
-    uint32_t addMsgLen = *(uint32_t*)(message+4);
+    uint32_t addMsgLen = *(uint32_t *)(message + 4);
     addMsgLen = ntohl(addMsgLen);
-    uint32_t extraMsgLen = *(uint32_t*)(message+8);
+    uint32_t extraMsgLen = *(uint32_t *)(message + 8);
     extraMsgLen = ntohl(extraMsgLen);
 
-
-    //Pointers to sections of the message
+    // Pointers to sections of the message
     unsigned char *msgLenPtr = message;
-    unsigned char *addLenPtr = msgLenPtr+4;
-    unsigned char *extraLenPtr = addLenPtr+4;
-    unsigned char *ivPtr = extraLenPtr+4;
-    unsigned char *tagPtr = ivPtr+IVLEN;
-    unsigned char *extraDataPtr = tagPtr+TAGLEN;
-    unsigned char *extraDataPckPtr = extraDataPtr+protocolSpecificExtraDataLen;
-    unsigned char *addDataPtr = extraDataPtr+extraMsgLen;
-    unsigned char *addPckDataPtr = addDataPtr+protocolSpecificAddLen;
-    unsigned char *encryptedDataPtr = addDataPtr+addMsgLen;
-    unsigned char *encryptedPckDataPtr = encryptedDataPtr+protocolSpecificEncryptedDataLen;
+    unsigned char *addLenPtr = msgLenPtr + 4;
+    unsigned char *extraLenPtr = addLenPtr + 4;
+    unsigned char *ivPtr = extraLenPtr + 4;
+    unsigned char *tagPtr = ivPtr + IVLEN;
+    unsigned char *extraDataPtr = tagPtr + TAGLEN;
+    unsigned char *extraDataPckPtr = extraDataPtr + protocolSpecificExtraDataLen;
+    unsigned char *addDataPtr = extraDataPtr + extraMsgLen;
+    unsigned char *addPckDataPtr = addDataPtr + protocolSpecificAddLen;
+    unsigned char *encryptedDataPtr = addDataPtr + addMsgLen;
+    unsigned char *encryptedPckDataPtr = encryptedDataPtr + protocolSpecificEncryptedDataLen;
 
     /* printf2("Message lengths - TotalLen: %d; AddLen: %d; ExtraLen: %d\n",msgLen,addMsgLen,extraMsgLen); */
-    printMessage("Message structure(encrypted):",message,0,true,true);
+    printMessage("Message structure(encrypted):", message, 0, true, true);
 
-
-
-    if(connInfo==NULL){
-        //No connInfo, hence assume this is a diffie helmann reply from the server
+    if (connInfo == NULL)
+    {
+        // No connInfo, hence assume this is a diffie helmann reply from the server
         printf2("Recieved diffie helmann public key from server\n");
         uint8_t publicDHKeyRemote[ECC_PUB_KEY_SIZE];
         uint8_t sharedDHKey[ECC_PUB_KEY_SIZE];
 
-        //Get the remote public key from message
+        // Get the remote public key from message
         pckDataToHostOrder(extraDataPckPtr);
-        getElementFromPckData(extraDataPckPtr,publicDHKeyRemote,0);
+        getElementFromPckData(extraDataPckPtr, publicDHKeyRemote, 0);
         pckDataToNetworkOrder(extraDataPckPtr);
 
-        //Generate shared key
-        ecdh_shared_secret(privateDHKeyBuffer,publicDHKeyRemote,sharedDHKey);
-        print2("Shared DH Key: ",sharedDHKey,ECC_PUB_KEY_SIZE,0);
-        memcpy(pointerToKey,sharedDHKey,KEYLEN);
-        initGCM(&encryptionContext,pointerToKey,KEYLEN*8);
+        // Generate shared key
+        ecdh_shared_secret(privateDHKeyBuffer, publicDHKeyRemote, sharedDHKey);
+        print2("Shared DH Key: ", sharedDHKey, ECC_PUB_KEY_SIZE, 0);
+        memcpy(pointerToKey, sharedDHKey, KEYLEN);
+        initGCM(&encryptionContext, pointerToKey, KEYLEN * 8);
+        saveEncryptionKeyToMemory(pointerToKey);
         hasEncryptionContextBeenEstablished = 1;
 
-        //Save the key to be used for encryption
+        // Write the new encryption key to device memory
+        printf2("Writing new encryption key to non-volatile memory\n");
+#if targetPlatform == 2
+        nvs_handle_t my_handle;
+        esp_err_t err = nvs_open("nvs", NVS_READWRITE, &my_handle);
+        if (err != ESP_OK)
+        {
+            printf("Error (%s) opening NVS handle!\n", esp_err_to_name(err));
+        }
+        else
+        {
+            printf("Done\n");
+        }
+#endif
+
+        // Save the key to be used for encryption
 
         return 0;
     }
 
-
     decryptPckData(&encryptionContext, message, decryptionBuffer);
 
-    //Since before any communication the client sends a beacon packet to server. If we get a message and sessionID is yet to be established it means the server sent its part of the sessionID.
+    // Since before any communication the client sends a beacon packet to server. If we get a message and sessionID is yet to be established it means the server sent its part of the sessionID.
     if (connInfo->sessionId == 0)
     {
-        print2("decrypted data:",decryptionBuffer,10,0);
-        //Get the remote nonce and establish sessionID
+        print2("decrypted data:", decryptionBuffer, 10, 0);
+        // Get the remote nonce and establish sessionID
         connInfo->remoteNonce = *((uint32_t *)decryptionBuffer);
         connInfo->localNonce = htonl(connInfo->localNonce);
         connInfo->sessionId = connInfo->localNonce + connInfo->remoteNonce;
-        printf2("local nonce: %u; remote: %u\n",connInfo->localNonce,connInfo->remoteNonce);
+        printf2("local nonce: %u; remote: %u\n", connInfo->localNonce, connInfo->remoteNonce);
         printf2(ANSI_COLOR_BLUE "SessionID established. SessionID: %u\n" ANSI_COLOR_WHITE, connInfo->sessionId);
         return 0;
     }
     else if (connInfo->sessionId != 0)
     {
-        //We received a server side message
+        // We received a server side message
         printf2("Recieved a message from server.\n");
         printMessage("Recieved message(decrypted)", message, 0, false, false);
-        
+
         printf2("PROCESSING ACTUAL MESSAGE\n");
         uint32_t opcode, argsLen;
-        print2("Encrypted data: ",encryptedPckDataPtr,40,0);
-        getElementFromPckData(encryptedPckDataPtr,(unsigned char*)&opcode,0);
-        argsLen = getElementLengthFromPckData(encryptedPckDataPtr,1);
+        print2("Encrypted data: ", encryptedPckDataPtr, 40, 0);
+        getElementFromPckData(encryptedPckDataPtr, (unsigned char *)&opcode, 0);
+        argsLen = getElementLengthFromPckData(encryptedPckDataPtr, 1);
         unsigned char args[argsLen];
-        getElementFromPckData(encryptedPckDataPtr,args,1);
+        getElementFromPckData(encryptedPckDataPtr, args, 1);
 
-        //Serialization
+        // Serialization
         /* opcode = ntohl(opcode); */
 
-        printf2("opcode: %d; argsLen: %d\n",opcode,argsLen);
-        nodeCommands[opcode](args,argsLen);
+        printf2("opcode: %d; argsLen: %d\n", opcode, argsLen);
+        nodeCommands[opcode](args, argsLen);
 
         return 0;
     }
@@ -298,7 +449,7 @@ int processMsg(connInfo_t *connInfo, unsigned char *message)
     }
 }
 
-//Composes a generic message (not fully formatted for the protocol, use pckData functions to complete the  message) use this for functions that compose different message types with different arguments
+// Composes a generic message (not fully formatted for the protocol, use pckData functions to complete the  message) use this for functions that compose different message types with different arguments
 int composeNodeMessage(nodeCmdInfo *currentNodeCmdInfo, unsigned char **pckDataEncrypted, unsigned char **pckDataAdd)
 {
     initPckData(pckDataAdd);
@@ -347,6 +498,67 @@ int composeBeaconPacketCmdInfo(nodeCmdInfo *cmdInfo, unsigned char *beaconData, 
     return 0;
 }
 
+//Specific beacon commands for each devtype
+
+#if targetDevtype == 2 //Smart lock
+
+int composeSmartLockBeaconCmdInfo(nodeCmdInfo *cmdInfo, uint8_t lockState, uint8_t doorState, uint8_t *password, uint8_t passwordLen){
+    // memcpy(cmdInfo->devId, localNodeSettings.devId, DEVIDLEN);
+    // cmdInfo->devType = localNodeSettings.devType;
+    // cmdInfo->opcode = 0;
+    // cmdInfo->argsLen = 2;
+
+    // unsigned char buffer[2];
+    // memcpy(buffer,&lockState,1);
+    // memcpy(buffer+1, &doorState,1);
+    
+    // cmdInfo->args = malloc(cmdInfo->argsLen);
+    // memcpy(cmdInfo->args,buffer,2);
+
+    unsigned char buffer[3+passwordLen];
+    memcpy(buffer,&lockState,1);
+    memcpy(buffer+1, &doorState,1);
+    memcpy(buffer+2, &passwordLen,1);
+    memcpy(buffer+3, password,passwordLen);
+    composeBeaconPacketCmdInfo(cmdInfo, buffer,3+passwordLen);
+    return 0;
+}
+
+#endif
+
+#if targetDevtype == 5
+
+int composeNoiseMonitorBeaconCmdInfo(nodeCmdInfo *cmdInfo, int noiseLevel){
+    // memcpy(cmdInfo->devId, localNodeSettings.devId, DEVIDLEN);
+    // cmdInfo->devType = localNodeSettings.devType;
+    // cmdInfo->opcode = 0;
+    // cmdInfo->argsLen = 2;
+
+    // unsigned char buffer[2];
+    // memcpy(buffer,&lockState,1);
+    // memcpy(buffer+1, &doorState,1);
+    
+    // cmdInfo->args = malloc(cmdInfo->argsLen);
+    // memcpy(cmdInfo->args,buffer,2);
+
+    unsigned char buffer[1];
+    // uint8_t dbLevel = (uint8_t)floor(noiseLevel);
+    // int dbLevelInt = (int)dbLevelFlood;
+    int dbLevelInt = noiseLevel;
+    printf2("NOISE LEVEL ORIGINAL: %d\n",dbLevelInt);
+    uint8_t dbLevelFinal = (uint8_t)dbLevelInt;
+    printf2("NOISE LEVEL ORIGINAL2: %d\n",dbLevelFinal);
+    // printf2("dbLevelInt: %d\n",dbLevelInt);
+    // uint8_t dbLevel = (uint8_t)dbLevelInt;
+    // printf2("dbLevelFinal:%d \n",dbLevel);
+    // printf2("Sending noise level: %d\n",dbLevel);
+    memcpy(buffer,&dbLevelFinal,1);
+    composeBeaconPacketCmdInfo(cmdInfo, buffer,1);
+    return 0;
+}
+#endif
+
+
 int freeNodeCmdInfo(nodeCmdInfo *cmdInfo)
 {
     free(cmdInfo->args);
@@ -355,9 +567,163 @@ int freeNodeCmdInfo(nodeCmdInfo *cmdInfo)
 
 int loadInNodeSettings()
 {
-    //Open the file
+    // Open the file
 
-    // #if targetPlatform == 1
+#if targetPlatform == 2
+    // Use NVS for data storage
+    nvs_handle_t my_handle;
+    esp_err_t err = nvs_open("nvs", NVS_READWRITE, &my_handle);
+    if (err != ESP_OK)
+    {
+        printf2("Error (%s) opening NVS handle!\n", esp_err_to_name(err));
+    }
+    else
+    {
+        printf2("Opened NVS storage successfully. Proceeding to load in settings\n");
+    }
+
+
+    //CHECK IF THIS IS A NEW DEVICE AND INITIALIZE FACTORY SETTINGS HERE
+    
+    initializeDeviceFactorySettings(&my_handle); //TODO: TEMPORARY ALWAYS LOAD FACTORY SETTINGS
+
+    
+
+    uint8_t isInitialized = 100;
+    err = nvs_get_u8(my_handle, "isInitialized", &isInitialized);
+    switch (err)
+    {
+    case ESP_OK:
+        printf2("Device Initialized Value = %d\n", isInitialized);
+        if(isInitialized==1){
+            //Device is initialized
+            printf2("Device is initialized\n");
+        }else{
+            //Device not initialized. Generate factory settings
+            initializeDeviceFactorySettings(&my_handle);
+        }
+        break;
+    case ESP_ERR_NVS_NOT_FOUND:
+        printf2("Device not initialized. Initializing default setting and generating DEVID\n");
+            initializeDeviceFactorySettings(&my_handle);
+        break;
+    default:
+        printf2("Error reading device initialization value\n", esp_err_to_name(err));
+    }
+
+    unsigned char devidMem[DEVIDLEN];
+    size_t devidLength = DEVIDLEN;
+    err = nvs_get_blob(my_handle, "devid", devidMem, &(devidLength));
+    switch (err)
+    {
+    case ESP_OK:
+        printf2("Acquired DEVID from memory: ");
+        for(int i = 0; i <DEVIDLEN; i++){
+            printf("%c",devidMem[i]);
+        }
+        printf("\n");
+        memcpy(localNodeSettings.devId,devidMem,DEVIDLEN);
+        break;
+    case ESP_ERR_NVS_NOT_FOUND:
+        printf2("Devid not initialized in memory. THIS SHOULD ONLY HAPPEN WHEN DEVICE IS FIRST TURNED ON\n");
+        printf2("Newly created DEVID: ");
+        for(int i = 0; i <DEVIDLEN; i++){
+            printf("%c",localNodeSettings.devId[i]);
+        }
+        printf("\n");
+        break;
+    default:
+        printf2("Error (%s) reading devid!\n", esp_err_to_name(err));
+    }
+
+    // Shared settings for all node devices
+    size_t secretKeyLength = 16;
+    err = nvs_get_blob(my_handle, "encryptionKey", pointerToKey, &(secretKeyLength));
+    switch (err)
+    {
+    case ESP_OK:
+        printf2("Acquired encryption key from non-volatile memory\n");
+        printf2("Encryption Key = %s\n", pointerToKey);
+        initGCM(&encryptionContext,pointerToKey,KEYLEN*8);
+        hasEncryptionContextBeenEstablished = 1;
+        break;
+    case ESP_ERR_NVS_NOT_FOUND:
+        printf2("Encryption Key not initialized in non-volatile memory.\n");
+        break;
+    default:
+        printf2("Error (%s) reading the encryption key!\n", esp_err_to_name(err));
+    }
+
+#if targetDevtype == 2
+
+    // GET PASSCODE LENGTH
+    printf2("Getting passcode length from memory\n");
+    uint8_t passcodeLenMem;
+    uint8_t wasPasscodeLenInMemory = 0;
+    err = nvs_get_u8(my_handle, "passcodeLen", &passcodeLenMem);
+    switch (err)
+    {
+    case ESP_OK:
+        printf2("Acquired passcode from non-volatile memory\n");
+        printf2("Current passcode length = %d\n", passcodeLenMem);
+        wasPasscodeLenInMemory = 1;
+        break;
+    case ESP_ERR_NVS_NOT_FOUND:
+        printf2("Passcode length not initialized in non-volatile memory. Using factory value length: 4\n");
+
+        break;
+    default:
+        printf2("Error (%s) reading the passcode length!\n", esp_err_to_name(err));
+    }
+
+    if (wasPasscodeLenInMemory == 1)
+    {
+        printf2("Getting passcode from memory\n");
+        uint8_t passcodeValTemp[MAX_PASSWORD_LEN];
+        err = nvs_get_blob(my_handle, "passcode",passcodeValTemp,&(passcodeLenMem));
+        switch (err)
+        {
+        case ESP_OK:
+            printf2("Acquired passcode from non-volatile memory.\n");
+            // for(int i = 0; i<passcodeLenMem; i++){
+            //     printf("%d",atoi(passcodeValTemp[i]));
+            // }
+            // printf("\n");
+            setPasscode(passcodeValTemp,passcodeLenMem,0);
+            break;
+        case ESP_ERR_NVS_NOT_FOUND:
+            printf2("Passcode not initialized in non-volatile memory. Using factory value: 000000\n");
+            uint8_t factoryPasscode[4] = {1,1,1,1};
+            setPasscode(factoryPasscode,4,0);
+            break;
+        default:
+            printf2("Error (%s) reading the passcode!\n", esp_err_to_name(err));
+        }
+    }
+    else
+    {
+        //Since no length was in memory, use factory passcode value
+        printf2("Setting factory passcode: 1111\n");
+        uint8_t factoryPasscode[4] = {1,1,1,1};
+        setPasscode(factoryPasscode,4,0);
+    }
+    nvs_close(my_handle);
+    return 1;
+#endif
+
+#if targetDevtype==3
+    return 1;
+#endif
+
+#if targetDevtype==4
+    return 1;
+#endif
+
+#if targetDevtype==5
+    return 1;
+#endif
+
+#elif targetPlatform == 1
     printf2("Loading node settings config file\n");
     FILE *settingsFile;
     char temp[60];
@@ -369,7 +735,7 @@ int loadInNodeSettings()
         return -1;
     }
 
-    //Analyze every line
+    // Analyze every line
     while (fgets(temp, 60, settingsFile) != NULL)
     {
         currentCharacters = strcspn(temp, "\n");
@@ -388,7 +754,7 @@ int loadInNodeSettings()
         {
             if (*(temp + i) == '"' && settingsNamePassedFirstQuote == 1 && settingNameComplete != 1)
             {
-                //Malloc space for setting name (and later value), remember to dealloc
+                // Malloc space for setting name (and later value), remember to dealloc
                 int settingNameLen = (temp + i) - settingNameBegin - 1;
                 printf2("CALLING MALLOC\n");
                 settingName = malloc(settingNameLen);
@@ -426,7 +792,7 @@ int loadInNodeSettings()
         }
         printf2("NAME: %s\n", settingName);
         printf2("VALUE: %s\n", settingValue);
-        //Analyze the obtained setting name and values and dealloc
+        // Analyze the obtained setting name and values and dealloc
         if (strcmp(settingName, "devId") == 0)
         {
             memcpy(localNodeSettings.devId, settingValue, DEVIDLEN);
@@ -442,11 +808,11 @@ int loadInNodeSettings()
     fclose(settingsFile);
     printf2("Finished reading node settings\n");
     return 1;
-    // #elif targetPlatform == 2
-    // printf2("Opening node settings file using esp32's filesystem\n");
+// #elif targetPlatform == 2
+// printf2("Opening node settings file using esp32's filesystem\n");
 
-    // return 1;
-    // #endif
+// return 1;
+#endif
 }
 
 int initializeConnInfo(connInfo_t *connInfo, int socket)
@@ -470,7 +836,7 @@ int initializeCommandQueue(arrayList *commandQueue)
     return 0;
 }
 
-//Gets the first item in queue and removes it from the queue
+// Gets the first item in queue and removes it from the queue
 int popCommandQueue(arrayList *commandQueue, nodeCmdInfo *cmdInfo)
 {
     pthread_mutex_lock(&commandQueueAccessMux);
@@ -502,7 +868,7 @@ int getCommandQueueLength(arrayList *commandQueue)
 
 void sleep_ms(int millis)
 {
-//printf("Sleeping for %i ms\n",millis);
+// printf("Sleeping for %i ms\n",millis);
 #if targetPlatform == 1
     struct timespec ts;
     ts.tv_sec = millis / 1000;
@@ -513,7 +879,7 @@ void sleep_ms(int millis)
 #endif
 }
 
-//The output structure should have size as variable: sizeOfSerializedCmdInfo.
+// The output structure should have size as variable: sizeOfSerializedCmdInfo.
 void serializeCmdInfo(unsigned char *output, nodeCmdInfo *input)
 {
     memcpy(output, input->devId, DEVIDLEN);
@@ -532,7 +898,7 @@ void deserializeCmdInfo(nodeCmdInfo *output, unsigned char *input)
     memcpy(&(output->args), input + DEVIDLEN + 4 + 4 + 4, sizeof(unsigned char *));
 }
 
-//Custom printf. Prepends a message with a prefix to simplify analysing output
+// Custom printf. Prepends a message with a prefix to simplify analysing output
 static int printf2(char *formattedInput, ...)
 {
     int result;
@@ -544,15 +910,60 @@ static int printf2(char *formattedInput, ...)
     return result;
 }
 
+int saveEncryptionKeyToMemory(unsigned char *key){
+    printf2("Saving encryption key to memory\n");
+    nvs_handle_t handle;
+    esp_err_t err = nvs_open("nvs", NVS_READWRITE, &handle);
+    if (err != ESP_OK) {
+        printf("Error (%s) opening NVS handle!\n", esp_err_to_name(err));
+        return -1;
+    } else {
+        printf("Opened NVS memory. Saving the new encryption key\n");
+    }
+    nvs_set_blob(handle,"encryptionKey",key,16);
+    nvs_close(handle);
+    return 1;
+
+}
+
+// ESP 32 specific functions
+#if targetPlatform == 2
+
+void initializeDeviceFactorySettings(nvs_handle *nvsHandle){
+
+    //Generate random devid string and store in memory
+    printf2("INITIALIZING FACTORY SETTINGS FOR DEVICE\n");
+    
+    //Delete any settings that were already present
+    nvs_erase_all(*nvsHandle);
+
+    char devidStr[DEVIDLEN];
+    rand_string(devidStr,DEVIDLEN);
+
+    printf2("Generated DEVID: ");
+    for(int i = 0; i<DEVIDLEN;i++){
+        printf("%c",devidStr[i]);
+    }
+    printf("\n");
+    nvs_set_blob(*nvsHandle,"devid",devidStr,DEVIDLEN);
+
+    memcpy(localNodeSettings.devId,devidStr,DEVIDLEN);
 
 
+    //Finished initializing
+    esp_err_t err = nvs_set_u8(*nvsHandle,"isInitialized",1);
 
-//ESP 32 specific functions
-#if targetPlatform==2
-//Inits NVS and SPIFFS
+    nvs_commit(*nvsHandle);
+
+    printf2("Error: %s\n",esp_err_to_name(err));
+
+}
+
+// Inits NVS and SPIFFS
 void initStorage()
 {
-    //INIT NVS (key:value pairs storage)
+    printf2("Initializing SPIFFS filesystem");
+    // INIT NVS (key:value pairs storage)
     esp_err_t ret = nvs_flash_init();
     if (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND)
     {
@@ -561,7 +972,7 @@ void initStorage()
     }
     ESP_ERROR_CHECK(ret);
 
-    //INIT SPIFFS (storage filesystem)
+    // INIT SPIFFS (storage filesystem)
     esp_vfs_spiffs_conf_t conf = {
         .base_path = "/spiffs",
         .partition_label = NULL,
@@ -587,7 +998,7 @@ void initStorage()
         }
     }
 
-    //Test SPIFF
+    // Test SPIFF
     size_t total = 0, used = 0;
     ret = esp_spiffs_info(conf.partition_label, &total, &used);
     if (ret != ESP_OK)
@@ -703,48 +1114,7 @@ static void wifiEventHandler(void *arg, esp_event_base_t event_base, int32_t eve
         s_retry_num = 0;
         xEventGroupSetBits(s_wifi_event_group, WIFI_CONNECTED_BIT);
     }
+    ESP_LOGI(TAG, "connect to the AP fail");
 }
 
-//MATRIX KEYBOARD STUFF (ADVANCED VERSION FOR S2 and S3 chips)
-
-//Matrix keyboard callback
-// esp_err_t example_matrix_kbd_event_handler(matrix_kbd_handle_t mkbd_handle, matrix_kbd_event_id_t event, void *event_data, void *handler_args)
-// {
-//     uint32_t key_code = (uint32_t)event_data;
-//     switch (event) {
-//     case MATRIX_KBD_EVENT_DOWN:
-//         ESP_LOGI(TAG, "press event, key code = %04x", key_code);
-//         break;
-//     case MATRIX_KBD_EVENT_UP:
-//         ESP_LOGI(TAG, "release event, key code = %04x", key_code);
-//         break;
-//     }
-//     return ESP_OK;
-// }
-
-
-//Init matrix keyboard. This is used for more advanced keypad code only supported on s2 and s3 chip versions
-// void initKeyboard(){
-//     matrix_kbd_handle_t kbd = NULL;
-//     // Apply default matrix keyboard configuration
-//     matrix_kbd_config_t config = MATRIX_KEYBOARD_DEFAULT_CONFIG();
-//     // Set GPIOs used by row and column line
-//     config.col_gpios = (int[]) {
-//         33, 27, 32
-//     };
-//     config.nr_col_gpios = 3;
-//     config.row_gpios = (int[]) {
-//         22, 23, 25, 26
-//     };
-//     config.nr_row_gpios = 4;
-//     // Install matrix keyboard driver
-//     matrix_kbd_install(&config, &kbd);
-//     // Register keyboard input event handler
-//     matrix_kbd_register_event_handler(kbd, example_matrix_kbd_event_handler, NULL);
-//     // Keyboard start to work
-//     matrix_kbd_start(kbd);
-// }
-
-
 #endif
-

@@ -1,0 +1,2 @@
+/usr/bin/ar qc libpckDataLib.a CMakeFiles/pckDataLib.dir/home/main/Projects/iot_system/protocol/pckData/commands.c.o CMakeFiles/pckDataLib.dir/home/main/Projects/iot_system/protocol/pckData/pckData.c.o
+/usr/bin/ranlib libpckDataLib.a

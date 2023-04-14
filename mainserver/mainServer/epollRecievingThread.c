@@ -193,7 +193,8 @@ void *epollRecievingThread(void *args){
                 //Check if we got a connection from node socket
                 if((events[i].events & EPOLLHUP) || (events[i].events & EPOLLERR) || !(events[i].events & EPOLLIN)){
                     printf2("Error occured or socket is stuck\n");
-                    exit(0);
+                    // exit(0);
+                    close1(socketBeingProcessed,&connectionsInfo);
                 } 
                 else if(events[i].data.fd==sockNodeLocal){
                     //New connection on node socket

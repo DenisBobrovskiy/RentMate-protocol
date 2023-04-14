@@ -129,12 +129,31 @@
     | 130       | NONE                      | NONE                      |
     
     **devType: 2 (SmartLock):**  
+    | opcode | nodeToServer   | serverToNode                                |
+    | ---    | ---            | ---                                         |
+    | 129    | sendDoorStatus | changePasscode                              |
+    | 130    | NONE           | retrieveCurrentPasscode                     |
+    | 130    | NONE           | unlockDoor                                  |
+    | 131    | NONE           | lockDoor                                    |
+    | 132    | NONE           | NONE                                        |
+    
+    **devType: 3 (SmartSocket):**  
     | opcode | nodeToServer | serverToNode            |
     | ---    | ---          | ---                     |
-    | 129    | NONE         | changePasscode          |
-    | 130    | NONE         | retrieveCurrentPasscode |
-    | 130    | NONE         | unlockDoor              |
+    | 129    | NONE         | switchOff               |
+    | 130    | NONE         | turnOn                  |
+    
+    **devType: 4 (PresenceDetector):**  
+    | opcode | nodeToServer | serverToNode            |
+    | ---    | ---          | ---                     |
+    | 129    | NONE         | presenceDetected        |
+    | 130    | NONE         | turnOn                  |
 
+    **devType: 5 (NoiseMonitor):**  
+    | opcode | nodeToServer          | serverToNode  |
+    | ---    | ---                   | ---           |
+    | 129    | sendCurrentNoiseLevel | setNoiseLimit |
+    | 130    | NONE                  | turnOn        |
 
 * ### Packet handling
 

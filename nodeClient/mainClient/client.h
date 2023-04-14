@@ -80,5 +80,30 @@ void deserializeCmdInfo(nodeCmdInfo *output, unsigned char *input);
 void serializeCmdInfo(unsigned char *output, nodeCmdInfo *input);
 int processMsg(connInfo_t *connInfo, unsigned char *message);
 
+//Data saving
+int saveEncryptionKeyToMemory(unsigned char *key);
+
+
+char *rand_string(char *str, size_t size);
+void initializeDeviceFactorySettings(nvs_handle *nvsHandle);
+
+//DEVTYPE SPECIFIC FUNCTIONS
+
+#if targetDevtype==2
+
+int composeSmartLockBeaconCmdInfo(nodeCmdInfo *cmdInfo, uint8_t lockState, uint8_t doorState, uint8_t *password, uint8_t passwordLen);
+
+#elif targetDevtype==3
+
+
+#elif targetDevtype==4
+
+
+#elif targetDevtype==5
+
+int composeNoiseMonitorBeaconCmdInfo(nodeCmdInfo *cmdInfo, int noiseLevel);
+
+#endif
+
 
 #endif
